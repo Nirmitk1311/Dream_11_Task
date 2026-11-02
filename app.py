@@ -526,7 +526,8 @@ with t_wi:
                   f"<span class='hyp'>HYPOTHETICAL</span></div>")
             nth = "What if, on the next ball" if not events else "Then, on the ball after that"
             batters = [b for b in stt.next["batters"] if b not in out_now and not stt.stats[b].out]
-            H(f"<div class='wq2'>{nth} from {html.escape(match.name(bowler))}…</div>")
+            H(f"<div class='wq2'>{nth} ({html.escape(match.name(bowler))} bowling), pick one of the "
+              "two batters at the crease and what he does:</div>")
             c1, c2 = st.columns([1, 1])
             batter = c1.selectbox("Batter", batters, format_func=match.name, key="wi_bat",
                                   label_visibility="collapsed") if batters else None
@@ -567,7 +568,7 @@ with t_wi:
 <div class='sx'>{html.escape(story['you_reason'])}</div></div>
 <div class='sr'><div class='sl'>Your rivals</div><div class='sv'>{story['rivals_gain']:+g} pts</div>
 <div class='sx'>on average. {html.escape(story['rivals_reason'])}</div></div>
-<div class='sr'><div class='sl'>Your rank</div><div class='sv'>#{rb:,} → #{ra:,}</div>
+<div class='sr'><div class='sl'>Your rank</div><div class='sv'>{story['rank_txt']}</div>
 <div class='sx'>{html.escape(story['rank_reason'])}</div></div>
 </div>""")
                 H(f"<div class='lede' style='margin-top:10px'><b>Why:</b> {html.escape(story['takeaway'])}</div>")

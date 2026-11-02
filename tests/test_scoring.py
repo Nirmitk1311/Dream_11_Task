@@ -183,3 +183,19 @@ def test_leaderboard_mid_match_has_you_once_in_order(contest, team):
     ranks = [r["rank"] for r in lb]
     assert ranks == sorted(ranks)
     assert next(r for r in lb if r["you"])["rank"] == int(contest.timeline(mm)["rank"][27])
+
+
+@pytest.mark.parametrize("step", [0, 5, 20, 26, 33])
+@pytest.mark.parametrize("typ", ["6", "4", "bowled"])
+def test_story_never_contradicts_rank_move(contest, team, step, typ):
+    _, mm = team
+    st = whatif.state_at(contest.match, step, 0)
+    for bat in st.next["batters"]:
+        r = whatif.run(contest, mm, st, [{"type": typ, "batter": bat, "bowler": st.next["bowler"], "fielder": None}])
+        s = whatif.plain_story(r)
+        if s["tone"] == "good":
+            assert "overtake you" not in s["takeaway"] and "slip" not in s["takeaway"]
+        if s["tone"] == "bad":
+            assert "move past them" not in s["takeaway"] and "jump ahead" not in s["takeaway"]
+        if r["all_level_before"]:
+            assert s["rank_txt"].startswith("Level")

@@ -30,7 +30,13 @@ except Exception:
 st.markdown("""<style>
 header[data-testid="stHeader"]{background:transparent;}
 footer{visibility:hidden;}
-.block-container{padding-top:1.4rem;max-width:1280px;}
+.block-container{padding:1rem 1.6rem 0;max-width:none;}
+[data-testid="stMain"] .stMarkdown:has(.hero){margin-bottom:6px;}
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]{gap:.55rem;}
+.st-key-main [data-testid="stHorizontalBlock"]{flex-wrap:wrap;row-gap:1rem;}
+@media (min-width:900px){.st-key-main [data-testid="stColumn"]{min-width:360px;}}
+.st-key-feed,.st-key-edge{overflow-y:auto;overflow-x:hidden;padding-right:8px;}
+@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(200px,calc(100vh - 625px));}.st-key-edge{max-height:max(300px,calc(100vh - 360px));}}
 .bug{display:flex;align-items:stretch;background:#17171B;color:#EDE9E0;border-radius:3px;overflow:hidden;margin-bottom:14px;}
 .bug .brand{background:#C2410C;color:#fff;padding:0 16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;font-size:21px;display:flex;align-items:center;}
 .bug .inn{padding:8px 18px;border-right:1px solid #34343B;display:flex;flex-direction:column;justify-content:center;min-width:150px;}
@@ -42,18 +48,18 @@ footer{visibility:hidden;}
 .bug .ctx{margin-left:auto;padding:8px 18px;text-align:right;display:flex;flex-direction:column;justify-content:center;}
 .bug .ctx .r{font-size:13px;color:#EDE9E0;margin-top:2px;}
 .dot{display:inline-block;width:7px;height:7px;background:#F97316;border-radius:50%;margin-right:7px;vertical-align:1px;}
-.hero{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;border-top:2px solid #17171B;border-bottom:1px solid #D8D2C4;margin:2px 0 6px;}
-.hero .c{padding:12px 16px 14px;border-right:1px solid #D8D2C4;}
+.hero{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;border-top:2px solid #17171B;border-bottom:1px solid #D8D2C4;margin:0;}
+.hero .c{padding:9px 16px 11px;border-right:1px solid #D8D2C4;}
 .hero .c:last-child{border-right:none;}
 .k{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#6E6A60;}
-.v{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:42px;line-height:1;margin-top:6px;color:#17171B;}
-.hero .c.main .v{font-size:60px;}
+.v{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:38px;line-height:1;margin-top:5px;color:#17171B;}
+.hero .c.main .v{font-size:52px;}
 .v.sm{font-size:32px;}
 .d{font-size:13px;margin-top:6px;color:#6E6A60;}
 .up{color:#1F7A4D;font-weight:600;} .down{color:#B42318;font-weight:600;}
 .pbar{height:4px;background:#E3DED2;margin-top:10px;position:relative;}
 .pbar i{position:absolute;left:0;top:0;bottom:0;background:#17171B;}
-.sh{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #17171B;padding-bottom:3px;margin:20px 0 12px;}
+.sh{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #17171B;padding-bottom:3px;margin:4px 0 8px;}
 .sh .h{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.03em;margin:0;padding:0;}
 .sh span{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#6E6A60;text-transform:uppercase;letter-spacing:.07em;}
 .feed{border-left:1px solid #D8D2C4;margin-left:5px;}
@@ -81,7 +87,7 @@ footer{visibility:hidden;}
 .edge th{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#6E6A60;text-align:left;border-bottom:1px solid #17171B!important;padding:4px 6px;border-top:none!important;border-left:none!important;border-right:none!important;background:transparent!important;}
 .edge td{padding:7px 6px;border:none!important;border-bottom:1px solid #E6E1D6!important;vertical-align:middle;}
 .edge .who{font-size:11.5px;color:#6E6A60;}
-.edge .b{height:5px;margin:3px 0;background:#E3DED2;position:relative;width:110px;}
+.edge .b{height:5px;margin:3px 0;background:#E3DED2;position:relative;width:90px;}
 .edge .b i{position:absolute;left:0;top:0;bottom:0;}
 .edge .b.you i{background:#17171B;} .edge .b.fld i{background:#A39E92;}
 .num{font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:right;white-space:nowrap;}
@@ -325,7 +331,8 @@ H(f"""<div class='hero'>
 <div class='c'><div class='k'>Match</div>{match_cell}</div>
 </div>""")
 
-left, right = st.columns([1.55, 1], gap="large")
+with st.container(key="main"):
+    left, mid, right = st.columns([1.3, 1, 1], gap="medium")
 
 # ------------------------------------------------------------------ left: chart + feed
 with left:
@@ -340,7 +347,7 @@ with left:
     label_expr = (f"datum.value <= {n1} ? '{first_short} ' + datum.value : "
                   f"'{second_short} ' + (datum.value - {n1})")
     x_enc = alt.X("over:Q", scale=alt.Scale(domain=[1, last_step], nice=False),
-                  axis=alt.Axis(title=None, values=list(range(5, last_step, 5)), labelExpr=label_expr))
+                  axis=alt.Axis(title=None, values=list(range(5, last_step, 5)), labelExpr=label_expr, labelOverlap="greedy"))
     y_max = int(max(tl["rank"][1:].max(), 10))
     y_enc = alt.Y("rank:Q", scale=alt.Scale(reverse=True, domain=[1, y_max * 1.05], nice=False),
                   axis=alt.Axis(title="RANK", format="~s", tickCount=5))
@@ -362,7 +369,7 @@ with left:
                                                fontWeight=700, color=ACCENT).encode(x=x_enc, y=y_enc, text="txt:N"))
     else:
         layers.append(alt.Chart(pd.DataFrame({"over": [1], "rank": [1]})).mark_point(opacity=0).encode(x=x_enc, y=y_enc))
-    chart = alt.layer(*layers).properties(height=260, background="transparent").configure_axis(
+    chart = alt.layer(*layers).properties(height=205, background="transparent").configure_axis(
         labelFont="IBM Plex Mono", titleFont="IBM Plex Mono", labelColor=MUTED, titleColor=MUTED,
         labelFontSize=10.5, titleFontSize=10, titleFontWeight="normal", gridColor="#E3DED2",
         domainColor=RULE, tickColor=RULE, titleAngle=0, titleAlign="left", titleY=-10, titleX=-38,
@@ -375,21 +382,18 @@ with left:
           "on what happened to <i>your</i> rank and why. Players you own more than your rivals do push you up; "
           "popular players you skipped push you down.</div>")
     else:
+        older = list(range(s - 5, 0, -1))
+        have_old = notes_for(older, generate=False) if older else {}
         items = []
-        for i, x in enumerate(visible):
-            if x < 1 or x not in notes:
+        for i, x in enumerate(range(s, 0, -1)):
+            nt = notes.get(x) or have_old.get(x)
+            if not nt:
                 continue
             st_ = match.steps[x]
             items.append(f"<div class='fi{' latest' if i == 0 else ''}'><div class='m'><b>{st_.label}</b> · "
-                         f"{st_.score}{chip(move(x))}</div><div class='tx'>{clean(notes[x]['note'])}</div></div>")
-        H("<div class='feed'>" + "".join(items) + "</div>")
-        older = list(range(s - 5, 0, -1))
-        if older:
-            with st.expander(f"Earlier overs ({len(older)})"):
-                have = notes_for(older, generate=False)
-                H("<div class='feed'>" + "".join(
-                    f"<div class='fi'><div class='m'><b>{match.steps[x].label}</b> · {match.steps[x].score}"
-                    f"{chip(move(x))}</div><div class='tx'>{clean(have[x]['note'])}</div></div>" for x in older) + "</div>")
+                         f"{st_.score}{chip(move(x))}</div><div class='tx'>{clean(nt['note'])}</div></div>")
+        with st.container(key="feed"):
+            H("<div class='feed'>" + "".join(items) + "</div>")
 
 # ------------------------------------------------------------------ right: next over, catch-up, edge
 WANT = {("batting", "cheer"): "Want runs", ("batting", "fear"): "Want him out",
@@ -398,7 +402,7 @@ WANT = {("batting", "cheer"): "Want runs", ("batting", "fear"): "Want him out",
 YOU = {"your Captain (2x)": "your captain", "your Vice-captain (1.5x)": "your vice-captain",
        "in your team": "in your team", "NOT in your team": "not in your team"}
 
-with right:
+with mid:
     if s >= last_step:
         sh("Full time")
         H(f"<div class='ft'><div class='k'>{html.escape(match.result)}</div>"
@@ -441,6 +445,7 @@ with right:
             lines = [clean(x.lstrip("-•* ").strip()) for x in cu[3].splitlines() if x.strip()]
             H("<div class='catch'>" + "<br>".join(lines) + "</div>")
 
+with right:
     sh("Where you differ", "you vs the field")
     cur_pts = match.steps[s].points
     trs = []
@@ -454,7 +459,8 @@ with right:
             f"<td><div class='b you'><i style='width:{you_m / 2 * 100:.0f}%'></i></div>"
             f"<div class='b fld'><i style='width:{min(fld_m, 2) / 2 * 100:.0f}%'></i></div></td>"
             f"<td>{eff}</td><td class='num'>{cur_pts[r_['pid']]}</td></tr>")
-    H("<table class='edge'><tr><th>Player</th><th>Stake</th><th>If he scores</th><th class='num'>Pts</th></tr>"
+    with st.container(key="edge"):
+        H("<table class='edge'><tr><th>Player</th><th>Stake</th><th>If he scores</th><th class='num'>Pts</th></tr>"
       + "".join(trs) + "</table>"
       "<div class='legend'>Stake:<i style='background:#17171B'></i>you<i style='background:#A39E92'></i>"
       "rivals' average (captain = 2x)</div>")
@@ -486,8 +492,7 @@ with st.sidebar:
     H(f"<div class='status'><i style='background:{dot}'></i>{msg}</div>")
 
 # ------------------------------------------------------------------ how it works
-st.markdown("")
-with st.expander("How MatchLens works, and what is simulated"):
+with st.sidebar.expander("How it works"):
     st.markdown(f"""
 **The problem.** A fantasy player watches *their 11 against everyone else's*. The app gives them a points total and
 a rank that moves every over, but not **why** it moved or **what to hope for next**.

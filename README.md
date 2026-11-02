@@ -10,12 +10,20 @@ During a live match they see points and a rank that jumps every over, but not **
 - **Root for this · next over:** for the two batters and the bowler, whether their success helps or hurts *you*
 - **Catch me up:** missed 6 overs? A 3-line summary of only what mattered to your team
 - **Your edge vs the field:** the players where you differ most from the contest
+- **What if…:** pick a delivery (dot / 1 / 4 / 6 / wicket bowled, LBW or caught) and stack up to an over of them.
+  Every player is recomputed from the full updated stats, **all 10,001 teams are re-scored**, and you see points and
+  rank before → after, teams you pass, and the exact rules behind every point
+  (e.g. *runs +6 + six bonus +6 = +12 → ×2 captain = +24 for you; 94% of rivals own him, field avg +15*). **Reset** restores the exact state.
+- **Next ball:** step through the replay ball by ball, not just over by over
+- **Simulated leaderboard:** top teams + the teams just above and below you (updates with your what-if)
 
 ## How it works
 
 | Layer | What | AI? |
 |---|---|---|
-| `matchlens/engine.py` | Ball-by-ball → Dream11-style T20 fantasy points after every over | No (exact) |
+| `data/t20_scoring_rules.json` | Versioned T20 ruleset (`dream11-style-t20 v1.0`), incl. economy/strike-rate bands and tie rule | - |
+| `matchlens/engine.py` | Ball-by-ball → itemised fantasy points after every ball and over | No (exact) |
+| `matchlens/whatif.py` | What-if simulator: apply hypothetical deliveries, re-score all lineups, rule breakdown | No (exact) |
 | `matchlens/contest.py` | 10,000 simulated rival teams → rank, "picked by %", effective ownership | No (exact) |
 | `matchlens/facts.py` | Builds the fact packets the AI is allowed to talk about | No |
 | `matchlens/ai.py` | Gemini turns facts into short fan-friendly notes; template fallback + cache | **Yes** |
@@ -26,6 +34,20 @@ dependency, so it can feed an in-app widget, push notifications or a chatbot dir
 
 **Core insight:** a player helps you only if you own him *more than the field does*
 (`your multiplier − field's average multiplier`). Your differential captain scoring big is worth cheering. A 90%-owned player you skipped scoring is not.
+
+## Tests
+
+```bash
+.venv\Scripts\pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest -q
+```
+
+The 16 tests cover: innings totals match the real scorecard; captain 2x and vice-captain 1.5x applied exactly once;
+a six = runs + six bonus (from the ruleset, not hard-coded); milestone bonus applied once; a popular shared player lifts
+every rival who owns him; wicket + catch updates batter, bowler and fielder; Reset restores the exact state; impossible
+scenarios rejected; tie convention; and the full app working with no LLM key.
+
+**Rank convention:** rank = 1 + number of teams with strictly more points (tied teams share the better rank).
 
 ## Run locally
 

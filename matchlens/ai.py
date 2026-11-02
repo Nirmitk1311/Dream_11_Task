@@ -175,6 +175,31 @@ def catch_up(facts: dict, lang: str) -> str | None:
     return text
 
 
+# ---------------------------------------------------------------- what-if
+def whatif_note(facts: dict, lang: str) -> str | None:
+    """One or two sentences explaining a what-if result. Facts are engine output only."""
+    if not available():
+        return None
+    k = _key("whatif-v1", [facts, lang])
+    if k in _cache:
+        return _cache[k]
+    prompt = (
+        f"{LANG[lang]}\n\nThe fan tested a hypothetical scenario (it has NOT happened). In max 40 words, explain "
+        "the result: how many points they gain and why their simulated rank moves (or doesn't), stressing how many "
+        "rivals also own the players involved. Say it is a what-if. Use only these numbers.\n\n"
+        f"RESULT:\n{json.dumps(facts, ensure_ascii=False)}"
+    )
+    try:
+        text = _call(prompt, json_mode=False).strip()
+    except Exception:
+        return None
+    if not text:
+        return None
+    _cache[k] = text
+    _save()
+    return text
+
+
 # ---------------------------------------------------------------- fallbacks
 def template_note(f: dict) -> str:
     move = (f["rank_before"] or f["rank_after"]) - f["rank_after"]

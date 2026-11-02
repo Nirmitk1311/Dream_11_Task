@@ -9,12 +9,13 @@ import re
 import time
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
-from matchlens import ai
+from matchlens import ai, whatif
 from matchlens.contest import Contest, validate_team
-from matchlens.engine import SCORING, list_matches, load_match
+from matchlens.engine import RULESET, SCORING, list_matches, load_match
 from matchlens.facts import catch_up_facts, preset_team, step_facts
 
 st.set_page_config(page_title="MatchLens", page_icon=":material/sports_cricket:", layout="wide",
@@ -38,8 +39,8 @@ footer{visibility:hidden;}
 @media (min-width:900px){.st-key-main [data-testid="stColumn"]{min-width:360px;}}
 .st-key-main [data-testid="stColumn"] [data-testid="stColumn"]{min-width:0!important;}
 .st-key-main [data-testid="stColumn"] [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
-.st-key-feed,.st-key-edge{overflow-y:auto;overflow-x:hidden;padding-right:8px;}
-@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(260px,calc(100vh - 298px - 4.7vw));}.st-key-edge{max-height:max(300px,calc(100vh - 398px - 6.6vw));}}
+.st-key-feed,.st-key-edge,.st-key-wi,.st-key-cu,.st-key-lb{overflow-y:auto;overflow-x:hidden;padding-right:8px;}
+@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(260px,calc(100vh - 298px - 4.7vw));}.st-key-edge,.st-key-wi,.st-key-cu{max-height:max(320px,calc(100vh - 350px - 4.7vw));}}
 .bug{display:flex;align-items:stretch;background:#17171B;color:#EDE9E0;border-radius:3px;overflow:hidden;margin-bottom:14px;}
 .bug .brand{background:#C2410C;color:#fff;padding:0 16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;font-size:calc(23.5 * var(--u));display:flex;align-items:center;}
 .bug .inn{padding:8px 18px;border-right:1px solid #34343B;display:flex;flex-direction:column;justify-content:center;min-width:150px;}
@@ -107,6 +108,17 @@ footer{visibility:hidden;}
 .lu .tot{display:flex;justify-content:space-between;align-items:baseline;font-family:'Barlow Condensed',sans-serif;font-size:calc(24.5 * var(--u));font-weight:700;margin-top:10px;}
 .status{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#9B968A;margin-top:14px;letter-spacing:.04em;}
 .status i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:1px;}
+.ba{display:grid;grid-template-columns:1fr 1fr;border:2px solid #17171B;margin:8px 0;}
+.ba>div{padding:8px 12px;} .ba>div+div{border-left:1px solid #D8D2C4;}
+.sim{font-family:'IBM Plex Mono',monospace;font-size:calc(10 * var(--u));letter-spacing:.08em;background:#17171B;color:#F4F1EA;padding:1px 6px;border-radius:2px;vertical-align:2px;}
+.rb{font-size:calc(13.5 * var(--u));line-height:1.5;padding:7px 0;border-bottom:1px solid #E6E1D6;}
+.rb .rl{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#6E6A60;}
+.scn{font-family:'IBM Plex Mono',monospace;font-size:calc(12.5 * var(--u));margin:4px 0 0;padding-left:20px;}
+.lb{width:100%;border-collapse:collapse;font-size:calc(14 * var(--u));border:none!important;}
+.lb td{border:none!important;border-bottom:1px solid #E6E1D6!important;padding:6px 6px;}
+.lb tr{background:transparent!important;border:none!important;}
+.lb tr.me td{background:#17171B!important;color:#F4F1EA;font-weight:600;}
+.lb .gap td{text-align:center;color:#A39E92;padding:2px;}
 @media (max-width:760px){.block-container{padding:2.8rem 0.8rem 0;}.hero{grid-template-columns:1fr 1fr;}.hero .c{border-bottom:1px solid #D8D2C4;}
 .bug{flex-wrap:wrap;}.bug .ctx{margin-left:0;text-align:left;}.hero .c.main .v{font-size:calc(46 * var(--u));}}
 </style>""", unsafe_allow_html=True)
@@ -163,6 +175,7 @@ if st.session_state.get("match_id") != match_id:
             pass
     st.session_state.team = preset_team(contest)
     st.session_state.autoplay = False
+    st.session_state.ball = 0
 
 
 def plabel(p):
@@ -193,6 +206,7 @@ with st.sidebar:
                     if not errs:
                         st.session_state.team = {"picks": picks, "captain": c, "vice": v}
                         st.session_state.step = 0
+                        st.session_state.ball = 0
                         st.success("Team locked. Replay restarted.")
 
 team = st.session_state.team
@@ -208,44 +222,72 @@ if st.session_state.get("autoplay"):
         st.session_state._last_tick = _now
         if st.session_state.step < last_step:
             st.session_state.step += 1
+            st.session_state.ball = 0
         else:
             st.session_state.autoplay = False
 
 
 def _set(v):
     st.session_state.step = max(0, min(last_step, v))
+    st.session_state.ball = 0
     st.session_state.autoplay = False
+
+
+def _next_ball():
+    s0, b0 = st.session_state.step, st.session_state.get("ball", 0)
+    st.session_state.autoplay = False
+    if s0 >= last_step:
+        return
+    if b0 + 1 >= len(match.steps[s0 + 1].balls):  # last delivery of the over -> over-end state
+        st.session_state.step, st.session_state.ball = s0 + 1, 0
+    else:
+        st.session_state.ball = b0 + 1
 
 
 s = st.session_state.get("step", 0)
 step = match.steps[s]
 SCORE_RE = re.compile(r"^(\S+) (\d+/\d+) \(([\d.]+)\)$")
+ball = st.session_state.get("ball", 0)
+bsnap = match.steps[s + 1].balls[ball - 1] if (ball and s < last_step and ball <= len(match.steps[s + 1].balls)) else None
+if not bsnap:
+    ball = 0
+cur_points = bsnap.points if bsnap else step.points
+cur_vec = np.array([cur_points[p] for p in contest.pids], dtype=np.float32)
+riv_now = contest.rival_mult @ cur_vec
+cur_idx = s + 1 if bsnap else s
+
+
+def rank_of(vec) -> int:
+    return int(1 + (contest.rival_mult @ vec > float(vec @ mm)).sum())
 
 # ------------------------------------------------------------------ scorebug
 def inn_cell(short: str, idx_range: range) -> str:
-    if s == 0 or s < idx_range.start:
+    if cur_idx == 0 or cur_idx < idx_range.start:
         return f"<div class='inn dim'><div class='t'>{short}</div><div class='s'>Yet to bat</div></div>"
-    at = min(s, idx_range.stop - 1)
-    mt = SCORE_RE.match(match.steps[at].score)
-    on = " on" if s in idx_range else ""
-    sc, ov = (mt.group(2), mt.group(3)) if mt else (match.steps[at].score, "")
+    at = min(cur_idx, idx_range.stop - 1)
+    txt = bsnap.score if (bsnap and cur_idx in idx_range) else match.steps[at].score
+    mt = SCORE_RE.match(txt)
+    on = " on" if cur_idx in idx_range else ""
+    sc, ov = (mt.group(2), mt.group(3)) if mt else (txt, "")
     return f"<div class='inn{on}'><div class='t'>{short}</div><div class='s'>{sc}<small>({ov})</small></div></div>"
 
 
-pos = "Before the first ball" if s == 0 else ("Full time" if s == last_step else
+pos = (f"Ball {bsnap.label} · {bsnap.text}" if bsnap else "Before the first ball") if (s == 0 or bsnap) else ("Full time" if s == last_step else
                                                f"Over {s - (n1 if s > n1 else 0)} · {'1st innings' if s <= n1 else 'chase'}")
 H(f"""<div class='bug'><div class='brand'>{first_short} v {second_short}</div>
 {inn_cell(first_short, range(1, inn_break))}{inn_cell(second_short, range(inn_break, last_step + 1))}
 <div class='ctx'><div class='t'><span class='dot'></span>Replay</div><div class='r'>{pos}</div></div></div>""")
 
 # ------------------------------------------------------------------ controls
-cb = st.columns([0.9, 0.9, 1.4, 1.1, 5.2], vertical_alignment="center")
+cb = st.columns([0.9, 0.9, 1.1, 1.3, 1.1, 4.6], vertical_alignment="center")
 cb[0].button("Restart", on_click=_set, args=(0,), width="stretch")
 cb[1].button("Back", on_click=lambda: _set(st.session_state.step - 1), width="stretch", disabled=s == 0)
-cb[2].button("Next over  →", type="primary", on_click=lambda: _set(st.session_state.step + 1),
+cb[2].button("Next ball", on_click=_next_ball, width="stretch", disabled=s >= last_step)
+cb[3].button("Next over  →", type="primary", on_click=lambda: _set(st.session_state.step + 1),
              width="stretch", disabled=s >= last_step)
-cb[3].toggle("Autoplay", key="autoplay")
-cb[4].slider("Replay position", 0, last_step, key="step", label_visibility="collapsed")
+cb[4].toggle("Autoplay", key="autoplay")
+cb[5].slider("Replay position", 0, last_step, key="step", label_visibility="collapsed",
+             on_change=lambda: st.session_state.update(ball=0))
 
 
 @st.fragment(run_every=1 if st.session_state.get("autoplay") else None)
@@ -305,32 +347,41 @@ def chip(mv: int | None) -> str:
 
 # ------------------------------------------------------------------ hero numbers
 n = tl["n"]
-pts_now = float(tl["points"][s])
-if s == 0:
-    rank_html = f"<div class='v'>—</div><div class='d'>All {n:,} teams start level</div>"
+pts_now = float(cur_vec @ mm)
+fa = float(riv_now.mean())
+top10 = float(np.percentile(riv_now, 90))
+SIM = "<span class='sim'>SIMULATED</span>"
+if cur_idx == 0:
+    rank_html = f"<div class='v'>—</div><div class='d'>All {n:,} teams start level {SIM}</div>"
 else:
-    r = int(tl["rank"][s])
-    mv = move(s)
+    r = rank_of(cur_vec)
+    if bsnap:
+        mv = int(tl["rank"][s]) - r if s >= 1 else None
+        unit = "since over start"
+    else:
+        mv = move(s)
+        unit = "this over"
     top = max(1, round(r / n * 100))
-    mv_html = ("<span class='up'>▲ {:,} this over</span>".format(mv) if mv and mv > 0 else
-               "<span class='down'>▼ {:,} this over</span>".format(-mv) if mv and mv < 0 else
-               "no change this over" if mv == 0 else "after the first over")
-    rank_html = (f"<div class='v'>#{r:,}</div><div class='d'>{mv_html} · of {n:,} · top {top}%</div>"
+    mv_html = (f"<span class='up'>▲ {mv:,} {unit}</span>" if mv and mv > 0 else
+               f"<span class='down'>▼ {-mv:,} {unit}</span>" if mv and mv < 0 else
+               f"no change {unit}" if mv == 0 else "after the first over")
+    rank_html = (f"<div class='v'>#{r:,}</div><div class='d'>{mv_html} · of {n:,} · top {top}% {SIM}</div>"
                  f"<div class='pbar'><i style='width:{100 - r / n * 100:.1f}%'></i></div>")
-pd_ = float(tl["points"][s] - tl["points"][s - 1]) if s else 0
-fa = float(tl["field_avg"][s])
+pd_ = pts_now - float(tl["points"][s]) if bsnap else (float(tl["points"][s] - tl["points"][s - 1]) if s else 0)
 lead = pts_now - fa
-mt = SCORE_RE.match(step.score)
-need = re.search(r"Need (\d+) more", step.summary)
+score_now = bsnap.score if bsnap else step.score
+mt = SCORE_RE.match(score_now)
+need = None if bsnap else re.search(r"Need (\d+) more", step.summary)
 match_cell = (f"<div class='v sm'>{mt.group(1)} {mt.group(2)}</div><div class='d'>{mt.group(3)} ov"
-              f"{' · need ' + need.group(1) if need else ''}</div>") if (s and mt) else \
+              f"{' · need ' + need.group(1) if need else ''}</div>") if (cur_idx and mt) else \
     "<div class='v sm'>0/0</div><div class='d'>Toss done, first ball soon</div>"
+pts_note = (f"{pd_:+.0f} this over so far" if bsnap else f"+{pd_:.0f} this over") if cur_idx else "+4 per player for playing"
 H(f"""<div class='hero'>
 <div class='c main'><div class='k'>Your rank</div>{rank_html}</div>
 <div class='c'><div class='k'>Your points</div><div class='v'>{pts_now:.0f}</div>
-<div class='d'>{f'+{pd_:.0f} this over' if s else '+4 per player for playing'}</div></div>
+<div class='d'>{pts_note}</div></div>
 <div class='c'><div class='k'>Field average</div><div class='v'>{fa:.0f}</div>
-<div class='d'>you're <span class='{'up' if lead >= 0 else 'down'}'>{lead:+.0f}</span> · top 10% cut {float(tl['top10pct'][s]):.0f}</div></div>
+<div class='d'>you're <span class='{'up' if lead >= 0 else 'down'}'>{lead:+.0f}</span> · top 10% cut {top10:.0f}</div></div>
 <div class='c'><div class='k'>Match</div>{match_cell}</div>
 </div>""")
 
@@ -381,7 +432,7 @@ with mid:
 
 with feedcol:
     sh("What moved you", "latest first")
-    if s == 0:
+    if s == 0 and not bsnap:
         H("<div class='lede'>Press <b>Next over</b> or turn on <b>Autoplay</b>. After every over you get one line "
           "on what happened to <i>your</i> rank and why. Players you own more than your rivals do push you up; "
           "popular players you skipped push you down.</div>")
@@ -389,38 +440,54 @@ with feedcol:
         older = list(range(s - 5, 0, -1))
         have_old = notes_for(older, generate=False) if older else {}
         items = []
+        if bsnap:
+            prev = rank_of(np.array([match.steps[s].points[p] for p in contest.pids], dtype=np.float32)) if s else None
+            ball_rows = []
+            for bl in match.steps[s + 1].balls[:ball]:
+                rk = rank_of(np.array([bl.points[p] for p in contest.pids], dtype=np.float32))
+                ball_rows.append((bl, rk, (prev - rk) if prev else None))
+                prev = rk
+            for k, (bl, rk, mvb) in enumerate(reversed(ball_rows)):
+                items.append(f"<div class='fi{' latest' if k == 0 else ''}'><div class='m'><b>Ball {bl.label}</b> · "
+                             f"{bl.score}{chip(mvb)}</div><div class='tx'>{html.escape(bl.text)}. You're #{rk:,}</div></div>")
         for i, x in enumerate(range(s, 0, -1)):
             nt = notes.get(x) or have_old.get(x)
             if not nt:
                 continue
             st_ = match.steps[x]
-            items.append(f"<div class='fi{' latest' if i == 0 else ''}'><div class='m'><b>{st_.label}</b> · "
+            items.append(f"<div class='fi{' latest' if (i == 0 and not bsnap) else ''}'><div class='m'><b>{st_.label}</b> · "
                          f"{st_.score}{chip(move(x))}</div><div class='tx'>{clean(nt['note'])}</div></div>")
         with st.container(key="feed"):
             H("<div class='feed'>" + "".join(items) + "</div>")
 
-# ------------------------------------------------------------------ right: next over, catch-up, edge
+# ------------------------------------------------------------------ right side: tabs
 WANT = {("batting", "cheer"): "Want runs", ("batting", "fear"): "Want him out",
         ("bowling", "cheer"): "Want wickets", ("bowling", "fear"): "Want him hit",
         ("batting", "neutral"): "Low stake", ("bowling", "neutral"): "Low stake"}
 YOU = {"your Captain (2x)": "your C", "your Vice-captain (1.5x)": "your VC",
        "in your team": "yours", "NOT in your team": "not yours"}
+MULT_TXT = {2.0: "your captain (2x)", 1.5: "your vice-captain (1.5x)", 1.0: "in your team (1x)", 0.0: "not in your team"}
 
 with mid:
+    t_next, t_lb = st.tabs(["Next ball" if bsnap else "Next over", "Leaderboard"])
+with right:
+    t_wi, t_edge, t_cu = st.tabs(["What if…", "Where you differ", "Catch me up"])
+
+# ---------------- next over / next ball
+with t_next:
     if s >= last_step:
-        sh("Full time")
         H(f"<div class='ft'><div class='k'>{html.escape(match.result)}</div>"
-          f"<div class='v'>#{int(tl['rank'][s]):,}</div>"
+          f"<div class='v'>#{rank_of(cur_vec):,}</div>"
           f"<div class='d'>Your final rank of {n:,}, with {pts_now:.0f} points "
-          f"(field average {fa:.0f}).</div></div>")
+          f"(field average {fa:.0f}). {SIM}</div></div>")
     else:
-        nxt = match.steps[s].next_over or {}
-        bowler = match.name(nxt["bowler"]) if nxt else ""
-        sh("Next over", f"{bowler} to bowl" if bowler else "")
-        if s >= 1 and s in notes and notes[s].get("root"):
+        nxt = (bsnap.next if bsnap else match.steps[s].next_over) or {}
+        bowler_name = match.name(nxt["bowler"]) if nxt else ""
+        H(f"<div class='d' style='margin:0 0 8px'>{bowler_name} to bowl. Whose success helps you?</div>")
+        if not bsnap and s >= 1 and s in notes and notes[s].get("root"):
             H(f"<div class='lede'>{clean(notes[s]['root'])}</div>")
         rows = []
-        for r_ in contest.root_for(mm, s):
+        for r_ in contest.root_for(mm, s, nxt):
             rows.append(
                 f"<div class='row'><div><div class='nm'>{html.escape(r_['player'])}</div>"
                 f"<div class='sub'>{r_['team']} · {r_['job']} · {YOU[r_['you']]} · "
@@ -428,33 +495,127 @@ with mid:
                 f"<span class='tag {r_['verdict']}'>{WANT[(r_['job'], r_['verdict'])]}</span></div>")
         H("<div class='nx'>" + "".join(rows) + "</div>")
 
-with right:
-    sh("Catch me up", "missed overs?")
-    if s < 2:
-        H("<div class='d' style='margin-top:0'>Available from over 2: a three-line summary of only what "
-          "mattered to your team since you last looked.</div>")
-    else:
-        options = list(range(1, s))
-        cc = st.columns([2.2, 1], vertical_alignment="bottom")
-        a = cc[0].selectbox("I last checked at", options, index=max(0, len(options) - 6),
-                            format_func=lambda i: f"{match.steps[i].label}  ·  {match.steps[i].score}")
-        if cc[1].button("Catch up", width="stretch"):
-            f = catch_up_facts(contest, mm, tl, a, s)
-            text = None
-            if ai.available():
-                with st.spinner("Summarising…"):
-                    text = ai.catch_up(f, lang)
-            st.session_state.catchup = (a, s, lang, text or ai.template_catch_up(f))
-        cu = st.session_state.get("catchup")
-        if cu and cu[0] == a and cu[1] == s and cu[2] == lang:
-            lines = [clean(x.lstrip("-•* ").strip()) for x in cu[3].splitlines() if x.strip()]
-            H("<div class='catch'>" + "<br>".join(lines) + "</div>")
+# ---------------- what-if simulator
+wi_vec = None
+with t_wi:
+    with st.container(key="wi"):
+        stt = whatif.state_at(match, s, ball)
+        base_key = (team_key, s, ball)
+        if st.session_state.get("wi_base") != base_key:
+            st.session_state.wi_base = base_key
+            st.session_state.wi_events = []
+        events = st.session_state.wi_events
+        if not stt.next:
+            H("<div class='d'>The match is over. Go back to any over to try a what-if.</div>")
+        else:
+            bowler = stt.next["bowler"]
+            out_now = whatif.outs_in(events)
+            H(f"<div class='d' style='margin:0 0 6px'>From <b>{html.escape(stt.score if cur_idx else 'the first ball')}</b>, "
+              f"{html.escape(match.name(bowler))} bowling. Add up to {whatif.MAX_BALLS} balls; all {n:,} teams are "
+              f"re-scored. {SIM}</div>")
+            ev_type = st.segmented_control("Event", list(whatif.EVENT_TYPES), default="6", key="wi_type",
+                                           format_func=lambda k: whatif.EVENT_TYPES[k],
+                                           label_visibility="collapsed") or "6"
+            batters = [b for b in stt.next["batters"] if b not in out_now and not stt.stats[b].out]
+            c1, c2 = st.columns(2)
+            batter = c1.selectbox("Batter", batters, format_func=match.name, key="wi_bat") if batters else None
+            fielder = None
+            if ev_type == "caught":
+                fielder = c2.selectbox("Caught by", whatif.fielding_side(match, stt), format_func=match.name,
+                                       key="wi_f")
+            else:
+                c2.selectbox("Bowler", [bowler], format_func=match.name, disabled=True, key="wi_bw")
+            b1, b2 = st.columns(2)
+            if b1.button("Add ball", type="primary", width="stretch", disabled=not batter):
+                ev = {"type": ev_type, "batter": batter, "bowler": bowler, "fielder": fielder}
+                errs = whatif.validate(match, stt, events, ev)
+                if errs:
+                    for e in errs:
+                        st.error(e)
+                else:
+                    events.append(ev)
+                    st.rerun()
+            if b2.button("Reset", width="stretch", disabled=not events):
+                events.clear()
+                st.rerun()
+            if not events:
+                H("<div class='d'>Pick an event and a batter, then <b>Add ball</b>. Try a six by your captain, "
+                  "then a six by a player you don't own.</div>")
+            else:
+                res = whatif.run(contest, mm, stt, events)
+                wi_vec = res["_after_vec"]
+                rb, ra = res["rank_before"], res["rank_after"]
+                mvw = rb - ra
+                mv_html = (f"<span class='up'>▲ {mvw:,}</span>" if mvw > 0 else
+                           f"<span class='down'>▼ {-mvw:,}</span>" if mvw < 0 else "no change")
+                H("<ol class='scn'>" + "".join(f"<li>{html.escape(x)}</li>" for x in res["scenario"]) + "</ol>")
+                H(f"<div class='ba'><div><div class='k'>Your points</div>"
+                  f"<div class='v sm'>{res['points_before']:g} → {res['points_after']:g}</div>"
+                  f"<div class='d'>{res['points_after'] - res['points_before']:+g} for you</div></div>"
+                  f"<div><div class='k'>Rank {SIM}</div><div class='v sm'>#{rb:,} → #{ra:,}</div>"
+                  f"<div class='d'>{mv_html} · you pass {res['teams_you_passed']:,}, "
+                  f"{res['teams_that_passed_you']:,} pass you</div></div></div>")
+                facts = {k: v for k, v in res.items() if not k.startswith("_")}
+                expl = None
+                if ai.available():
+                    with st.spinner("Explaining…"):
+                        expl = ai.whatif_note(facts, lang)
+                H(f"<div class='lede'>{clean(expl or whatif.template_explanation(res))}</div>")
+                for p_ in res["players"]:
+                    rules = " + ".join(f"{lbl} {v:+g}" for lbl, v in p_["rules"])
+                    H(f"<div class='rb'><b>{html.escape(p_['player'])}</b> ({p_['team']}): "
+                      f"{p_['points_before']:g} → {p_['points_after']:g} pts<br>"
+                      f"<span class='rl'>{html.escape(rules)} = {p_['delta']:+g}</span><br>"
+                      f"{MULT_TXT.get(p_['your_multiplier'], '')}: <b>{p_['your_gain']:+g}</b> for you · "
+                      f"{p_['picked_by_pct']}% of rivals own him (avg ×{p_['field_avg_multiplier']}) → "
+                      f"field avg {p_['field_avg_gain']:+g}</div>")
+                H("<div class='legend'>" + " ".join(html.escape(w) for w in res["warnings"]) + "</div>")
 
-with right:
-    sh("Where you differ", "you vs the field")
-    cur_pts = match.steps[s].points
+# ---------------- simulated leaderboard
+with t_lb:
+    with st.container(key="lb"):
+        vec = wi_vec if wi_vec is not None else cur_vec
+        lb_rows = contest.leaderboard(mm, vec)
+        H(f"<div class='d' style='margin:0 0 6px'>{SIM} league of {n:,} teams"
+          f"{' · <b>with your what-if applied</b>' if wi_vec is not None else ''}. "
+          f"Rank = 1 + teams with more points (ties share a rank).</div>")
+        trs = []
+        for r_ in lb_rows:
+            if r_.get("gap"):
+                trs.append("<tr class='gap'><td colspan='4'>⋯</td></tr>")
+                continue
+            trs.append(f"<tr class='{'me' if r_['you'] else ''}'><td class='num'>#{r_['rank']:,}</td>"
+                       f"<td>{r_['name']}</td><td class='who'>C: {html.escape(r_['captain'])}</td>"
+                       f"<td class='num'>{r_['points']:g}</td></tr>")
+        H("<table class='lb'>" + "".join(trs) + "</table>")
+
+# ---------------- catch me up
+with t_cu:
+    with st.container(key="cu"):
+        if s < 2:
+            H("<div class='d' style='margin-top:0'>Available from over 2: a three-line summary of only what "
+              "mattered to your team since you last looked.</div>")
+        else:
+            options = list(range(1, s))
+            cc = st.columns([2.2, 1], vertical_alignment="bottom")
+            a = cc[0].selectbox("I last checked at", options, index=max(0, len(options) - 6),
+                                format_func=lambda i: f"{match.steps[i].label}  ·  {match.steps[i].score}")
+            if cc[1].button("Catch up", width="stretch"):
+                f = catch_up_facts(contest, mm, tl, a, s)
+                text = None
+                if ai.available():
+                    with st.spinner("Summarising…"):
+                        text = ai.catch_up(f, lang)
+                st.session_state.catchup = (a, s, lang, text or ai.template_catch_up(f))
+            cu = st.session_state.get("catchup")
+            if cu and cu[0] == a and cu[1] == s and cu[2] == lang:
+                lines = [clean(x.lstrip("-•* ").strip()) for x in cu[3].splitlines() if x.strip()]
+                H("<div class='catch'>" + "<br>".join(lines) + "</div>")
+
+# ---------------- where you differ
+with t_edge:
     trs = []
-    for r_ in contest.differentials(mm)[:7]:
+    for r_ in contest.differentials(mm)[:8]:
         i = contest.pids.index(r_["pid"])
         you_m, fld_m = float(mm[i]), float(contest.eo[i])
         eff = "<span class='up'>helps</span>" if r_["leverage"] > 0 else "<span class='down'>hurts</span>"
@@ -463,16 +624,16 @@ with right:
             f"{YOU[r_['you']]} · {r_['picked_by_pct']}% own</div></td>"
             f"<td><div class='b you'><i style='width:{you_m / 2 * 100:.0f}%'></i></div>"
             f"<div class='b fld'><i style='width:{min(fld_m, 2) / 2 * 100:.0f}%'></i></div></td>"
-            f"<td>{eff}</td><td class='num'>{cur_pts[r_['pid']]}</td></tr>")
+            f"<td>{eff}</td><td class='num'>{cur_points[r_['pid']]}</td></tr>")
     with st.container(key="edge"):
         H("<table class='edge'><tr><th>Player</th><th>Stake</th><th>His runs</th><th class='num'>Pts</th></tr>"
-      + "".join(trs) + "</table>"
-      "<div class='legend'>Stake:<i style='background:#17171B'></i>you<i style='background:#A39E92'></i>"
-      "rivals' average (captain = 2x)</div>")
+          + "".join(trs) + "</table>"
+          "<div class='legend'>Stake:<i style='background:#17171B'></i>you<i style='background:#A39E92'></i>"
+          "rivals' average (captain = 2x)</div>")
 
 # ------------------------------------------------------------------ sidebar: lineup + status
 with st.sidebar:
-    pts = match.steps[s].points
+    pts = cur_points
     groups = []
     for role, title in [("WK", "Wicket-keeper"), ("BAT", "Batters"), ("AR", "All-rounders"), ("BOWL", "Bowlers")]:
         ps = [p for p in team["picks"] if match.players[p]["role"] == role]
@@ -509,10 +670,14 @@ a rank that moves every over, but not **why** it moved or **what to hope for nex
 3. **Gemini.** Receives only the computed facts and writes the short notes in English or Hinglish. It explains and never
    calculates. If it's unavailable, plain template notes are shown instead.
 
+**What if… (try it).** Pick a delivery (dot, 1, 4, 6, wicket). The engine applies it to the current match state,
+recomputes every player from the full updated stats (strike-rate, economy and milestone bands included), re-scores
+all {n:,} teams and re-ranks them. Each result shows the exact rules that produced the points.
+
 **Why "Next over" works:** a player helps you only when you own him *more than the field does*. A captain that few
 rivals captained is worth cheering. A player in 90% of teams that you left out hurts you every time he scores.
 
-**Scoring (approximation):** +{SCORING['run']} per run, +{SCORING['four_bonus']} per four, +{SCORING['six_bonus']} per six,
+**Scoring ruleset `{RULESET}` (approximation):** +{SCORING['run']} per run, +{SCORING['four_bonus']} per four, +{SCORING['six_bonus']} per six,
 25/50/75/100-run bonuses, duck −2, wicket +{SCORING['wicket']} (+8 bowled/LBW), 3/4/5-wicket bonuses, maiden +12, dot ball +1,
 catch +8, stumping +12, run-out +12/+6, economy and strike-rate bonuses, captain 2x, vice-captain 1.5x, +4 for playing.
 

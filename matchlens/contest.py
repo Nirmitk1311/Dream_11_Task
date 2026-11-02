@@ -157,9 +157,9 @@ class Contest:
         i = self.pids.index(p)
         return float(mm[i] - self.eo[i])
 
-    def root_for(self, mm: np.ndarray, step: int) -> list[dict]:
-        """For the next over: who is involved and whether their success helps you."""
-        nxt = self.match.steps[step].next_over
+    def root_for(self, mm: np.ndarray, step: int, nxt: dict | None = None) -> list[dict]:
+        """For the next over (or next ball): who is involved and whether their success helps you."""
+        nxt = nxt or self.match.steps[step].next_over
         if not nxt:
             return []
         out = []
@@ -172,6 +172,40 @@ class Contest:
                 "verdict": "cheer" if lev > 0.15 else ("fear" if lev < -0.15 else "neutral"),
             })
         return out
+
+    def leaderboard(self, mm: np.ndarray, pts_vec: np.ndarray, top: int = 3, around: int = 2) -> list[dict]:
+        """Top rivals + the rivals just above/below you. rank = 1 + teams with strictly more points."""
+        rt = self.rival_mult @ pts_vec
+        mine = float(pts_vec @ mm)
+        order = np.argsort(-rt, kind="stable")
+        ahead = int((rt > mine).sum())
+        positions = sorted(set(range(min(top, len(rt)))) |
+                           set(range(max(0, ahead - around), min(len(rt), ahead + around))))
+
+        def row(pos):
+            j = int(order[pos])
+            cap = self.pids[int(np.argmax(self.rival_mult[j]))]
+            return {"rank": 1 + int((rt > rt[j]).sum()), "name": f"Rival #{j + 1:05d}",
+                    "points": float(rt[j]), "captain": self.match.name(cap), "you": False}
+
+        my_cap = self.pids[int(np.argmax(mm))]
+        me = {"rank": ahead + 1, "name": "You", "points": mine, "captain": self.match.name(my_cap), "you": True}
+        rows, last = [], -1
+        for pos in positions:
+            if pos >= ahead and not any(r.get("you") for r in rows):
+                if last >= 0 and ahead - last > 1:
+                    rows.append({"gap": True})
+                rows.append(me)
+                last = ahead - 1
+            if last >= 0 and pos - last > 1:
+                rows.append({"gap": True})
+            rows.append(row(pos))
+            last = pos
+        if not any(r.get("you") for r in rows):
+            if ahead - last > 1:
+                rows.append({"gap": True})
+            rows.append(me)
+        return rows
 
     def differentials(self, mm: np.ndarray) -> list[dict]:
         rows = []

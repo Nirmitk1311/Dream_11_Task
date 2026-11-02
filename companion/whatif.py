@@ -144,6 +144,7 @@ def run(contest: Contest, mm: np.ndarray, state: State, scenario: list[dict]) ->
             "your_multiplier": mult, "your_gain": d * mult,
             "picked_by_pct": round(float(contest.pick_pct[i])),
             "captained_by_pct": round(float(contest.cap_pct[i])),
+            "owned_by": contest.owned_text(i),
             "field_avg_multiplier": round(float(contest.eo[i]), 2),
             "field_avg_gain": round(d * float(contest.eo[i]), 1),
         })
@@ -173,10 +174,36 @@ def run(contest: Contest, mm: np.ndarray, state: State, scenario: list[dict]) ->
         "main_player": match.name(contest.pids[main_i]),
         "main_player_delta": float(after[main_i] - before[main_i]),
         "passer_mults": passer_mults,
+        "friend_gap": _friend_gap(contest, my_b, my_a, riv_b, riv_a),
+        "names_that_pass_you": [contest.rival_name(j) for j in np.flatnonzero(passers)] if contest.names else [],
+        "names_you_pass": [contest.rival_name(j) for j in np.flatnonzero(ahead_b & ~ahead_a)] if contest.names else [],
         "players": players,
         "warnings": warnings,
         "_after_vec": after,
     }
+
+
+def biggest_moment(contest: Contest, mm: np.ndarray, state: State) -> list[dict]:
+    """For each batter at the crease vs the current bowler: what a wicket and what a six would
+    do to your rank (plain-language verdicts). Sorted so the first item is your biggest moment."""
+    if not state.next:
+        return []
+    bowler = state.next["bowler"]
+    out = []
+    for bat in state.next["batters"]:
+        if state.stats[bat].out:
+            continue
+        item = {"batter": bat, "bowler": bowler, "swing": 0}
+        for key, t in (("wicket", "bowled"), ("six", "6")):
+            r = run(contest, mm, state, [{"type": t, "batter": bat, "bowler": bowler, "fielder": None}])
+            st = plain_story(r)
+            mag = (abs(r["teams_behind_after"] - r["teams_ahead_after"]) if r["all_level_before"]
+                   else abs(r["rank_before"] - r["rank_after"]))
+            item[key] = {"verdict": st["verdict"], "tone": st["tone"], "move": mag}
+            g = r.get("friend_gap")
+            item["swing"] += mag * 1000 + (abs(g["after"] - g["before"]) if g else 0)
+        out.append(item)
+    return sorted(out, key=lambda x: -x["swing"])
 
 
 VERB = {"dot": "plays a dot ball", "1": "takes 1 run", "4": "hits a four", "6": "hits a six",
@@ -200,10 +227,15 @@ def plain_story(r: dict) -> dict:
             verdict, tone = f"Bad for you: {ahead:,} teams would be ahead of you", "bad"
         else:
             verdict, tone = "No change: you'd stay level with most teams", "flat"
+    elif move > 0 and r.get("names_you_pass"):
+        verdict, tone = f"Good for you: you'd overtake {', '.join(r['names_you_pass'])}", "good"
+    elif move < 0 and r.get("names_that_pass_you"):
+        nm = r["names_that_pass_you"]
+        verdict, tone = f"Bad for you: {', '.join(nm)} would overtake you", "bad"
     elif move > 0:
-        verdict, tone = f"Good for you: you'd climb {move:,} places", "good"
+        verdict, tone = f"Good for you: you'd climb {move:,} place{'s' if move != 1 else ''}", "good"
     elif move < 0:
-        verdict, tone = f"Bad for you: you'd drop {-move:,} places", "bad"
+        verdict, tone = f"Bad for you: you'd drop {-move:,} place{'s' if move != -1 else ''}", "bad"
     else:
         verdict, tone = "No change to your rank", "flat"
 
@@ -224,7 +256,7 @@ def plain_story(r: dict) -> dict:
 
     main = max(r["players"], key=lambda p: abs(p["field_avg_gain"]), default=None)
     if main and main["field_avg_gain"]:
-        rivals_reason = (f"{main['picked_by_pct']}% of rival teams have {main['player']} "
+        rivals_reason = (f"{main['player']}: {main['owned_by']} "
                          f"({main['captained_by_pct']}% as captain), so they "
                          f"{'gain' if main['field_avg_gain'] > 0 else 'lose'} too.")
     else:
@@ -242,6 +274,14 @@ def plain_story(r: dict) -> dict:
             takeaway = "You gain more than most teams, so you jump ahead of them."
         else:
             takeaway = "Most teams gain more than you from this ball, so they move ahead."
+    elif move < 0 and r.get("names_that_pass_you"):
+        rank_reason = f"{', '.join(r['names_that_pass_you'])} would move ahead of you."
+        nm = r["names_that_pass_you"]
+        takeaway = (f"{', '.join(nm)} {'gains' if len(nm) == 1 else 'gain'} more than you from this ball, "
+                    f"so {'overtakes' if len(nm) == 1 else 'overtake'} you.")
+    elif move > 0 and r.get("names_you_pass"):
+        rank_reason = f"You would overtake {', '.join(r['names_you_pass'])}."
+        takeaway = f"You gain more than {', '.join(r['names_you_pass'])} from this ball, so you move past them."
     elif move < 0:
         rank_reason = f"{r['teams_that_passed_you']:,} teams that were behind you would move ahead of you."
         if you_gain > 0 and higher >= 0.5 * max(1, r["teams_that_passed_you"]):
@@ -258,11 +298,55 @@ def plain_story(r: dict) -> dict:
     else:
         rank_reason = "Nobody overtakes you and you overtake nobody."
         takeaway = "The teams around you gain about the same as you, so your rank doesn't move."
+    gt = gap_text(r.get("friend_gap"))
+    if gt and move == 0 and not r["all_level_before"]:
+        txt, tone = gt
+        verdict = ("Good for you: " if tone == "good" else "Bad for you: " if tone == "bad" else "No change: ") + txt
+        rank_reason = f"Your place doesn't change, but {txt}."
     rank_txt = (f"Level → #{r['rank_after']:,}" if r["all_level_before"]
                 else f"#{r['rank_before']:,} → #{r['rank_after']:,}")
     return {"verdict": verdict, "tone": tone, "you_gain": you_gain, "you_reason": you_reason,
             "rivals_gain": r["field_avg_gain"], "rivals_reason": rivals_reason, "rank_reason": rank_reason,
             "rank_txt": rank_txt, "takeaway": takeaway}
+
+
+def _friend_gap(contest, my_b, my_a, riv_b, riv_a) -> dict | None:
+    """Friends league: the friend just ahead of you (or just behind, if you lead) and the points gap."""
+    if not contest.names:
+        return None
+    ahead = [j for j in range(len(riv_b)) if riv_b[j] > my_b]
+    if ahead:
+        j = min(ahead, key=lambda k: riv_b[k] - my_b)
+        return {"name": contest.names[j], "side": "ahead",
+                "before": float(riv_b[j] - my_b), "after": float(riv_a[j] - my_a)}
+    behind = [j for j in range(len(riv_b)) if riv_b[j] <= my_b]
+    if behind:
+        j = min(behind, key=lambda k: my_b - riv_b[k])
+        return {"name": contest.names[j], "side": "behind",
+                "before": float(my_b - riv_b[j]), "after": float(my_a - riv_a[j])}
+    return None
+
+
+def gap_text(g: dict | None) -> tuple[str, str] | None:
+    """('you'd close the gap to Sneha: 36 → 18 pts', tone) for a friends league."""
+    if not g:
+        return None
+    b, a = g["before"], g["after"]
+    if g["side"] == "ahead":
+        if a < 0:
+            return f"you'd overtake {g['name']}", "good"
+        if a < b:
+            return f"you'd close the gap to {g['name']}: {b:g} → {a:g} pts", "good"
+        if a > b:
+            return f"{g['name']} would pull further ahead: {b:g} → {a:g} pts", "bad"
+        return f"the gap to {g['name']} stays {b:g} pts", "flat"
+    if a < 0:
+        return f"{g['name']} would overtake you", "bad"
+    if a > b:
+        return f"your lead over {g['name']} grows: {b:g} → {a:g} pts", "good"
+    if a < b:
+        return f"{g['name']} would close in: your lead {b:g} → {a:g} pts", "bad"
+    return f"your lead over {g['name']} stays {b:g} pts", "flat"
 
 
 def template_explanation(r: dict) -> str:

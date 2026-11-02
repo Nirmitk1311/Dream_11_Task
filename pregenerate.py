@@ -28,8 +28,15 @@ if ai.catch_up({"from": "test", "to": "test", "note": "reply with: ok"}, "en") i
     sys.exit(f"Gemini call failed: {ai.last_error}")
 print(f"OK - using model {ai._working_model}\n")
 
+FRIENDS = ["Rahul", "Priya", "Aman", "Sneha", "Kabir"]  # must match DEFAULT_FRIENDS in app.py
+jobs = []
 for m in list_matches():
-    contest = Contest.build(load_match(m["id"]))
+    base = Contest.build(load_match(m["id"]))
+    jobs.append((m, base, "10k"))
+    if m["id"] == "1539433":  # default match: also cache the friends league
+        jobs.append((m, Contest.friends(base, FRIENDS), "friends"))
+
+for m, contest, tag in jobs:
     team = preset_team(contest)
     mm = contest.my_mult(team["picks"], team["captain"], team["vice"])
     tl = contest.timeline(mm)
@@ -44,7 +51,7 @@ for m in list_matches():
                 print(f"   retrying in 20s ({ai.last_error})")
                 time.sleep(20)
             status = "ok" if got else "FAILED (app will use template notes here)"
-            print(f"{m['label'][:40]:40s} {lang:8s} overs {start:2d}-{facts[-1]['step']:2d}: {status}")
+            print(f"{tag:8s}{m['label'][:32]:32s} {lang:8s} overs {start:2d}-{facts[-1]['step']:2d}: {status}")
             if got:
                 print("   e.g.", next(iter(got.values()))["note"])
             time.sleep(4)

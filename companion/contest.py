@@ -53,6 +53,40 @@ class Contest:
     cap_pct: np.ndarray
     vc_pct: np.ndarray
     eo: np.ndarray
+    names: list | None = None  # friend names when this is a small private league
+
+    @classmethod
+    def friends(cls, base: "Contest", names: list[str]) -> "Contest":
+        """A private league of len(names) friends, picked deterministically from the simulated
+        pool so they have different, realistic captain choices (the 4 most popular captains
+        plus one differential pick). All maths (EO, rank, what-if) works unchanged."""
+        caps = base.rival_mult.argmax(1)
+        counts = np.bincount(caps, minlength=len(base.pids))
+        order = [int(i) for i in np.argsort(-counts)]
+        diff = next((i for i in order if 0 < counts[i] < 0.03 * len(caps)), order[-1])
+        wanted = (order[:max(0, len(names) - 1)] + [diff])[:len(names)]
+        idx = []
+        for k, c in enumerate(wanted):
+            pool = np.flatnonzero(caps == c)
+            idx.append(int(pool[(7 * k + 3) % len(pool)]))
+        mult = base.rival_mult[idx]
+        return cls(
+            match=base.match, pids=base.pids, pts=base.pts, rival_mult=mult,
+            rival_totals=mult @ base.pts.T,
+            pick_pct=(mult > 0).mean(0) * 100, cap_pct=(mult == 2.0).mean(0) * 100,
+            vc_pct=(mult == 1.5).mean(0) * 100, eo=mult.mean(0), names=list(names),
+        )
+
+    def rival_name(self, j: int) -> str:
+        return self.names[j] if self.names else f"Rival #{j + 1:05d}"
+
+    def movers(self, mine_a: float, mine_b: float, riv_a: np.ndarray, riv_b: np.ndarray) -> dict:
+        """Named friends who passed you / you passed between two states (friends league only)."""
+        if not self.names:
+            return {}
+        passed_you = [self.names[j] for j in range(len(riv_a)) if riv_a[j] <= mine_a and riv_b[j] > mine_b]
+        you_passed = [self.names[j] for j in range(len(riv_a)) if riv_a[j] > mine_a and riv_b[j] <= mine_b]
+        return {"friends_who_passed_you": passed_you, "friends_you_passed": you_passed}
 
     @classmethod
     def build(cls, match: Match, n: int = N_RIVALS, seed: int = 11) -> "Contest":
@@ -151,7 +185,14 @@ class Contest:
             "you": mine,
             "picked_by_pct": round(float(self.pick_pct[i])),
             "captained_by_pct": round(float(self.cap_pct[i])),
+            "owned_by": self.owned_text(i),
         }
+
+    def owned_text(self, i: int) -> str:
+        if self.names:
+            k = int((self.rival_mult[:, i] > 0).sum())
+            return f"{k} of {len(self.names)} friends own him"
+        return f"{round(float(self.pick_pct[i]))}% of rivals own him"
 
     def leverage(self, mm: np.ndarray, p: str) -> float:
         i = self.pids.index(p)
@@ -185,7 +226,7 @@ class Contest:
         def row(pos):
             j = int(order[pos])
             cap = self.pids[int(np.argmax(self.rival_mult[j]))]
-            return {"rank": 1 + int((rt > rt[j]).sum()), "name": f"Rival #{j + 1:05d}",
+            return {"rank": 1 + int((rt > rt[j]).sum()) + int(mine > rt[j]), "name": self.rival_name(j),
                     "points": float(rt[j]), "captain": self.match.name(cap), "you": False}
 
         my_cap = self.pids[int(np.argmax(mm))]

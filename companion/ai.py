@@ -29,7 +29,8 @@ _api_key: str | None = None
 last_error: str | None = None
 
 SYSTEM = """You are a live fantasy-cricket companion inside a fantasy sports app, for Indian fans.
-A fan has a fantasy team in a contest of 10,001 teams and is watching the match live.
+A fan has a fantasy team in a contest (size given in the facts) and is watching the match live.
+If the facts include friends' names (friends_who_passed_you / friends_you_passed), name them: it is a private league with friends.
 You receive EXACT facts computed by a scoring engine. Rules:
 - Use ONLY numbers present in the facts. Never invent or estimate numbers, players or events.
 - Explain from the fan's point of view: what happened TO THEIR TEAM and RANK, and why.
@@ -215,7 +216,11 @@ def template_note(f: dict) -> str:
         d = f["drivers"][0]
         sign = "helped" if d["net_effect_on_you"] > 0 else "hurt"
         head += (f" {d['player']} {sign} you ({d['what_he_did'] or 'quiet over'}) - "
-                 f"{d['you']}, picked by {d['picked_by_pct']}%.")
+                 f"{d['you']}, {d.get('owned_by') or str(d['picked_by_pct']) + '% own him'}.")
+    if f.get("friends_who_passed_you"):
+        head += f" {', '.join(f['friends_who_passed_you'])} passed you."
+    if f.get("friends_you_passed"):
+        head += f" You passed {', '.join(f['friends_you_passed'])}."
     return head
 
 

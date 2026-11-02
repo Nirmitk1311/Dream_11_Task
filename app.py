@@ -130,6 +130,10 @@ footer{visibility:hidden;}
 .sl{font-family:'IBM Plex Mono',monospace;font-size:calc(11 * var(--u));text-transform:uppercase;letter-spacing:.06em;color:#6E6A60;padding-top:4px;}
 .sv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22 * var(--u));line-height:1.1;}
 .sx{grid-column:2;font-size:calc(13.5 * var(--u));color:#3F3D38;line-height:1.4;margin-top:2px;}
+.bm{border:2px solid #17171B;background:#FBFAF6;padding:9px 12px;margin:0 0 10px;}
+.bmm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(24 * var(--u));line-height:1.1;margin:3px 0 6px;}
+.bmr{display:flex;align-items:center;gap:10px;font-size:calc(14 * var(--u));margin:4px 0;}
+.bmr .tag{min-width:calc(78 * var(--u));text-align:center;}
 @media (max-width:760px){.block-container{padding:2.8rem 0.8rem 0;}.hero{grid-template-columns:1fr 1fr;}.hero .c{border-bottom:1px solid #D8D2C4;}
 .bug{flex-wrap:wrap;}.bug .ctx{margin-left:0;text-align:left;}.hero .c.main .v{font-size:calc(46 * var(--u));}}
 </style>""", unsafe_allow_html=True)
@@ -156,6 +160,14 @@ def get_contest(match_id: str) -> Contest:
     return Contest.build(load_match(match_id))
 
 
+@st.cache_resource(show_spinner=False)
+def get_friends(match_id: str, names: tuple) -> Contest:
+    return Contest.friends(get_contest(match_id), list(names))
+
+
+DEFAULT_FRIENDS = "Rahul, Priya, Aman, Sneha, Kabir"
+
+
 matches = list_matches()
 match_labels = {m["id"]: m["label"] for m in matches}
 
@@ -165,8 +177,18 @@ with st.sidebar:
     match_id = st.selectbox("Match", list(match_labels), format_func=lambda k: match_labels[k])
     lang = st.segmented_control("Notes language", ["en", "hinglish"], default="en",
                                 format_func=lambda k: {"en": "English", "hinglish": "Hinglish"}[k]) or "en"
+    _lg_default = "friends" if st.query_params.get("league") == "friends" else "public"
+    league = st.segmented_control("Contest", ["public", "friends"], default=_lg_default, key="league",
+                                  format_func=lambda k: {"public": "10,000 players",
+                                                         "friends": "My friends"}[k]) or "public"
+    friend_names = tuple(DEFAULT_FRIENDS.split(", "))
+    if league == "friends":
+        _raw = st.text_input("Friends' names (comma separated)", DEFAULT_FRIENDS, key="fnames")
+        _names = tuple(dict.fromkeys(x.strip()[:14] for x in _raw.split(",") if x.strip()))[:8]
+        friend_names = _names if len(_names) >= 2 else friend_names
 
-contest = get_contest(match_id)
+contest = get_friends(match_id, friend_names) if league == "friends" else get_contest(match_id)
+FRIENDS = bool(contest.names)
 match = contest.match
 last_step = len(match.steps) - 1
 first_short = match.steps[1].label.split(" ")[0]
@@ -223,7 +245,8 @@ with st.sidebar:
 team = st.session_state.team
 mm = contest.my_mult(team["picks"], team["captain"], team["vice"])
 tl = contest.timeline(mm)
-team_key = (match_id, tuple(sorted(team["picks"])), team["captain"], team["vice"])
+team_key = (match_id, tuple(sorted(team["picks"])), team["captain"], team["vice"], league,
+            friend_names if FRIENDS else ())
 
 # ------------------------------------------------------------------ replay state
 AUTOPLAY_SECS = 2.5
@@ -391,7 +414,7 @@ H(f"""<div class='hero'>
 <div class='c main'><div class='k'>Your rank</div>{rank_html}</div>
 <div class='c'><div class='k'>Your points</div><div class='v'>{pts_now:.0f}</div>
 <div class='d'>{pts_note}</div></div>
-<div class='c'><div class='k'>Field average</div><div class='v'>{fa:.0f}</div>
+<div class='c'><div class='k'>{"Friends' average" if FRIENDS else 'Field average'}</div><div class='v'>{fa:.0f}</div>
 <div class='d'>you're <span class='{'up' if lead >= 0 else 'down'}'>{lead:+.0f}</span> · top 10% cut {top10:.0f}</div></div>
 <div class='c'><div class='k'>Match</div>{match_cell}</div>
 </div>""")
@@ -401,7 +424,7 @@ with st.container(key="main"):
 
 # ------------------------------------------------------------------ left: chart + feed
 with mid:
-    sh("Rank, over by over", f"{n - 1:,} rivals")
+    sh("Rank, over by over", f"{n - 1} friends" if FRIENDS else f"{n - 1:,} rivals")
     df = pd.DataFrame({
         "over": list(range(1, s + 1)),
         "rank": [int(x) for x in tl["rank"][1:s + 1]],
@@ -413,7 +436,7 @@ with mid:
                   f"'{second_short} ' + (datum.value - {n1})")
     x_enc = alt.X("over:Q", scale=alt.Scale(domain=[1, last_step], nice=False),
                   axis=alt.Axis(title=None, values=list(range(5, last_step, 5)), labelExpr=label_expr, labelOverlap="greedy"))
-    y_max = int(max(tl["rank"][1:].max(), 10))
+    y_max = int(tl["n"]) if FRIENDS else int(max(tl["rank"][1:].max(), 10))
     y_enc = alt.Y("rank:Q", scale=alt.Scale(reverse=True, domain=[1, y_max * 1.05], nice=False),
                   axis=alt.Axis(title="RANK", format="~s", tickCount=5))
     layers = []
@@ -493,6 +516,19 @@ with t_next:
           f"(field average {fa:.0f}). {SIM}</div></div>")
     else:
         nxt = (bsnap.next if bsnap else match.steps[s].next_over) or {}
+        TAGT = {"good": "cheer", "bad": "fear", "flat": "neutral"}
+        bm = whatif.biggest_moment(contest, mm, whatif.state_at(match, s, ball))
+        if bm:
+            top_ = bm[0]
+
+            def _bm_line(lbl, v):
+                txt = v["verdict"].split(": ", 1)[-1]
+                return (f"<div class='bmr'><span class='tag {TAGT[v['tone']]}'>{lbl}</span>"
+                        f"<span>{html.escape(txt[:1].upper() + txt[1:])}</span></div>")
+            H(f"<div class='bm'><div class='k'>Your biggest moment {'next ball' if bsnap else 'this over'}</div>"
+              f"<div class='bmm'>{html.escape(match.name(top_['bowler']))} to "
+              f"{html.escape(match.name(top_['batter']))}</div>"
+              + _bm_line("If wicket", top_["wicket"]) + _bm_line("If six", top_["six"]) + "</div>")
         bowler_name = match.name(nxt["bowler"]) if nxt else ""
         H(f"<div class='d' style='margin:0 0 8px'>{bowler_name} to bowl. Whose success helps you?</div>")
         if not bsnap and s >= 1 and s in notes and notes[s].get("root"):
@@ -502,7 +538,7 @@ with t_next:
             rows.append(
                 f"<div class='row'><div><div class='nm'>{html.escape(r_['player'])}</div>"
                 f"<div class='sub'>{r_['team']} · {r_['job']} · {YOU[r_['you']]} · "
-                f"{r_['picked_by_pct']}% own</div></div>"
+                f"{html.escape(r_['owned_by'])}</div></div>"
                 f"<span class='tag {r_['verdict']}'>{WANT[(r_['job'], r_['verdict'])]}</span></div>")
         H("<div class='nx'>" + "".join(rows) + "</div>")
 
@@ -578,9 +614,9 @@ with t_wi:
                         H(f"<div class='rb'><b>{html.escape(p_['player'])}</b>: {html.escape(rules)} = "
                           f"<b>{p_['delta']:+g} pts</b><br><span class='rl'>"
                           f"{MULT_TXT.get(p_['your_multiplier'], '')} → {p_['your_gain']:+g} for you · "
-                          f"{p_['picked_by_pct']}% of rivals own him → rivals {p_['field_avg_gain']:+g} on average"
+                          f"{p_['owned_by']} → rivals {p_['field_avg_gain']:+g} on average"
                           f"</span></div>")
-                    H("<div class='legend'>Rivals are 10,000 simulated teams. "
+                    H(f"<div class='legend'>Rivals are {n - 1:,} simulated teams. "
                       + " ".join(html.escape(w) for w in res["warnings"]) + "</div>")
 
 # ---------------- simulated leaderboard
@@ -588,7 +624,7 @@ with t_lb:
     with st.container(key="lb"):
         vec = wi_vec if wi_vec is not None else cur_vec
         lb_rows = contest.leaderboard(mm, vec)
-        H(f"<div class='d' style='margin:0 0 6px'>{SIM} league of {n:,} teams"
+        H(f"<div class='d' style='margin:0 0 6px'>{SIM} {'friends league' if FRIENDS else 'league'} of {n:,} teams"
           f"{' · <b>with your what-if applied</b>' if wi_vec is not None else ''}. "
           f"Rank = 1 + teams with more points (ties share a rank).</div>")
         trs = []
@@ -633,7 +669,7 @@ with t_edge:
         eff = "<span class='up'>helps</span>" if r_["leverage"] > 0 else "<span class='down'>hurts</span>"
         trs.append(
             f"<tr><td><div>{html.escape(r_['player'])}</div><div class='who'>{r_['team']} · "
-            f"{YOU[r_['you']]} · {r_['picked_by_pct']}% own</div></td>"
+            f"{YOU[r_['you']]} · {html.escape(r_['owned_by'])}</div></td>"
             f"<td><div class='b you'><i style='width:{you_m / 2 * 100:.0f}%'></i></div>"
             f"<div class='b fld'><i style='width:{min(fld_m, 2) / 2 * 100:.0f}%'></i></div></td>"
             f"<td>{eff}</td><td class='num'>{cur_points[r_['pid']]}</td></tr>")

@@ -53,7 +53,16 @@ def step_facts(contest: Contest, mm, tl: dict, s: int) -> dict:
         "field_avg_points_this_over": round(float(tl["field_avg"][s] - tl["field_avg"][s - 1]), 1),
         "drivers": contest.drivers(mm, s - 1, s, top=3),
         "next_over": _root_rows(contest, mm, s),
-    }
+    } | _friends(contest, tl, s - 1, s)
+
+
+def _friends(contest: Contest, tl: dict, a: int, b: int) -> dict:
+    if not contest.names:
+        return {}
+    out = contest.movers(float(tl["points"][a]), float(tl["points"][b]),
+                         contest.rival_totals[:, a], contest.rival_totals[:, b])
+    out["league"] = f"private league with friends: {', '.join(contest.names)}"
+    return out
 
 
 def catch_up_facts(contest: Contest, mm, tl: dict, a: int, b: int) -> dict:
@@ -72,4 +81,4 @@ def catch_up_facts(contest: Contest, mm, tl: dict, a: int, b: int) -> dict:
         "key_moments": moments[-6:],
         "score_now": steps[b].score,
         "next_over": _root_rows(contest, mm, b),
-    }
+    } | _friends(contest, tl, a, b)

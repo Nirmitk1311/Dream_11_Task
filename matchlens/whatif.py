@@ -166,6 +166,65 @@ def run(contest: Contest, mm: np.ndarray, state: State, scenario: list[dict]) ->
     }
 
 
+VERB = {"dot": "plays a dot ball", "1": "takes 1 run", "4": "hits a four", "6": "hits a six",
+        "bowled": "is bowled", "lbw": "is out LBW", "caught": "is caught"}
+
+
+def plain_story(r: dict) -> dict:
+    """Plain-language version of a result: a verdict + three short 'why' rows."""
+    move = r["rank_before"] - r["rank_after"]
+    you_gain = r["points_after"] - r["points_before"]
+    if move > 0:
+        verdict, tone = f"Good for you: you'd climb {move:,} places", "good"
+    elif move < 0:
+        verdict, tone = f"Bad for you: you'd drop {-move:,} places", "bad"
+    else:
+        verdict, tone = "No change to your rank", "flat"
+
+    # Row 1: you
+    bits = []
+    for p in r["players"]:
+        if not p["delta"]:
+            continue
+        m = p["your_multiplier"]
+        if m == 2:
+            bits.append(f"{p['player']} is your captain, so his {p['delta']:+g} counts double ({p['your_gain']:+g})")
+        elif m == 1.5:
+            bits.append(f"{p['player']} is your vice-captain, so his {p['delta']:+g} counts 1.5x ({p['your_gain']:+g})")
+        elif m == 1:
+            bits.append(f"{p['player']} is in your team ({p['your_gain']:+g})")
+        else:
+            bits.append(f"{p['player']} is not in your team, so his {p['delta']:+g} doesn't count for you")
+    you_reason = "; ".join(bits[:2]) + "." if bits else "Nobody in your team is affected."
+
+    # Row 2: rivals
+    main = max(r["players"], key=lambda p: abs(p["field_avg_gain"]), default=None)
+    if main and main["field_avg_gain"]:
+        rivals_reason = (f"{main['picked_by_pct']}% of rival teams have {main['player']}, "
+                         f"so they {'gain' if main['field_avg_gain'] > 0 else 'lose'} too.")
+    else:
+        rivals_reason = "Rivals' points barely change."
+
+    # Row 3: rank
+    if move < 0:
+        rank_reason = f"{r['teams_that_passed_you']:,} teams that were behind you would move ahead of you."
+    elif move > 0:
+        rank_reason = f"You would overtake {r['teams_you_passed']:,} teams."
+    else:
+        rank_reason = "Nobody overtakes you and you overtake nobody."
+
+    fg = r["field_avg_gain"]
+    if you_gain > fg + 0.5:
+        takeaway = "You gain more than the average rival, so you move up."
+    elif you_gain < fg - 0.5:
+        takeaway = "Your rivals gain more than you, so you slip down, even if your own points don't fall."
+    else:
+        takeaway = "You and your rivals gain about the same, so your rank barely moves."
+    return {"verdict": verdict, "tone": tone, "you_gain": you_gain, "you_reason": you_reason,
+            "rivals_gain": fg, "rivals_reason": rivals_reason, "rank_reason": rank_reason,
+            "takeaway": takeaway}
+
+
 def template_explanation(r: dict) -> str:
     move = r["rank_before"] - r["rank_after"]
     lines = []

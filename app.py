@@ -39,8 +39,8 @@ footer{visibility:hidden;}
 @media (min-width:900px){.st-key-main [data-testid="stColumn"]{min-width:360px;}}
 .st-key-main [data-testid="stColumn"] [data-testid="stColumn"]{min-width:0!important;}
 .st-key-main [data-testid="stColumn"] [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
-.st-key-feed,.st-key-edge,.st-key-wi,.st-key-cu,.st-key-lb{overflow-y:auto;overflow-x:hidden;padding-right:8px;}
-@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(260px,calc(100vh - 298px - 4.7vw));}.st-key-edge,.st-key-wi,.st-key-cu{max-height:max(320px,calc(100vh - 350px - 4.7vw));}}
+.st-key-feed,.st-key-edge,.st-key-wi,.st-key-cu,.st-key-lb{overflow-y:auto;overflow-x:hidden;padding-right:8px;padding-bottom:1.4rem;}
+@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(260px,calc(100vh - 298px - 4.7vw));}.st-key-edge,.st-key-wi,.st-key-cu{max-height:max(320px,calc(100vh - 305px - 4.7vw));}}
 .bug{display:flex;align-items:stretch;background:#17171B;color:#EDE9E0;border-radius:3px;overflow:hidden;margin-bottom:14px;}
 .bug .brand{background:#C2410C;color:#fff;padding:0 16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;font-size:calc(23.5 * var(--u));display:flex;align-items:center;}
 .bug .inn{padding:8px 18px;border-right:1px solid #34343B;display:flex;flex-direction:column;justify-content:center;min-width:150px;}
@@ -119,6 +119,17 @@ footer{visibility:hidden;}
 .lb tr{background:transparent!important;border:none!important;}
 .lb tr.me td{background:#17171B!important;color:#F4F1EA;font-weight:600;}
 .lb .gap td{text-align:center;color:#A39E92;padding:2px;}
+.wq2{font-size:calc(13.5 * var(--u));color:#6E6A60;margin:6px 0 2px;}
+.wq{font-size:calc(14.5 * var(--u));line-height:1.45;margin:0 0 4px;}
+.hyp{font-family:'IBM Plex Mono',monospace;font-size:calc(10 * var(--u));letter-spacing:.08em;border:1px solid #C2410C;color:#C2410C;padding:0 5px;border-radius:2px;vertical-align:2px;margin-left:4px;}
+.verdict{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22 * var(--u));text-transform:uppercase;letter-spacing:.02em;padding:8px 12px;margin:6px 0 0;color:#fff;}
+.verdict.good{background:#1F7A4D;} .verdict.bad{background:#B42318;} .verdict.flat{background:#6E6A60;}
+.story{border:1px solid #D8D2C4;border-top:none;background:#FBFAF6;}
+.sr{display:grid;grid-template-columns:calc(92 * var(--u)) auto;column-gap:10px;padding:9px 12px;border-top:1px solid #E6E1D6;}
+.sr:first-child{border-top:none;}
+.sl{font-family:'IBM Plex Mono',monospace;font-size:calc(11 * var(--u));text-transform:uppercase;letter-spacing:.06em;color:#6E6A60;padding-top:4px;}
+.sv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22 * var(--u));line-height:1.1;}
+.sx{grid-column:2;font-size:calc(13.5 * var(--u));color:#3F3D38;line-height:1.4;margin-top:2px;}
 @media (max-width:760px){.block-container{padding:2.8rem 0.8rem 0;}.hero{grid-template-columns:1fr 1fr;}.hero .c{border-bottom:1px solid #D8D2C4;}
 .bug{flex-wrap:wrap;}.bug .ctx{margin-left:0;text-align:left;}.hero .c.main .v{font-size:calc(46 * var(--u));}}
 </style>""", unsafe_allow_html=True)
@@ -510,23 +521,24 @@ with t_wi:
         else:
             bowler = stt.next["bowler"]
             out_now = whatif.outs_in(events)
-            H(f"<div class='d' style='margin:0 0 6px'>From <b>{html.escape(stt.score if cur_idx else 'the first ball')}</b>, "
-              f"{html.escape(match.name(bowler))} bowling. Add up to {whatif.MAX_BALLS} balls; all {n:,} teams are "
-              f"re-scored. {SIM}</div>")
-            ev_type = st.segmented_control("Event", list(whatif.EVENT_TYPES), default="6", key="wi_type",
-                                           format_func=lambda k: whatif.EVENT_TYPES[k],
-                                           label_visibility="collapsed") or "6"
+            if not events:
+                H("<div class='wq'>Test a ball that <b>hasn't happened yet</b> and see how it would move your rank. "
+                  f"<span class='hyp'>HYPOTHETICAL</span></div>")
+            nth = "What if, on the next ball" if not events else "Then, on the ball after that"
             batters = [b for b in stt.next["batters"] if b not in out_now and not stt.stats[b].out]
-            c1, c2 = st.columns(2)
-            batter = c1.selectbox("Batter", batters, format_func=match.name, key="wi_bat") if batters else None
+            H(f"<div class='wq2'>{nth} from {html.escape(match.name(bowler))}…</div>")
+            c1, c2 = st.columns([1, 1])
+            batter = c1.selectbox("Batter", batters, format_func=match.name, key="wi_bat",
+                                  label_visibility="collapsed") if batters else None
+            ev_type = c2.selectbox("Event", list(whatif.EVENT_TYPES), index=3, key="wi_type2",
+                                   format_func=lambda k: whatif.VERB[k], label_visibility="collapsed")
             fielder = None
             if ev_type == "caught":
-                fielder = c2.selectbox("Caught by", whatif.fielding_side(match, stt), format_func=match.name,
+                fielder = st.selectbox("Caught by", whatif.fielding_side(match, stt), format_func=match.name,
                                        key="wi_f")
-            else:
-                c2.selectbox("Bowler", [bowler], format_func=match.name, disabled=True, key="wi_bw")
-            b1, b2 = st.columns(2)
-            if b1.button("Add ball", type="primary", width="stretch", disabled=not batter):
+            b1, b2 = st.columns([1.4, 1])
+            if b1.button("Show me" if not events else "+ Add another ball", type="primary", width="stretch",
+                         disabled=not batter):
                 ev = {"type": ev_type, "batter": batter, "bowler": bowler, "fielder": fielder}
                 errs = whatif.validate(match, stt, events, ev)
                 if errs:
@@ -535,41 +547,40 @@ with t_wi:
                 else:
                     events.append(ev)
                     st.rerun()
-            if b2.button("Reset", width="stretch", disabled=not events):
+            if b2.button("Start over", width="stretch", disabled=not events):
                 events.clear()
                 st.rerun()
             if not events:
-                H("<div class='d'>Pick an event and a batter, then <b>Add ball</b>. Try a six by your captain, "
-                  "then a six by a player you don't own.</div>")
+                H("<div class='d' style='margin-top:8px'>Try these: a six by <b>your captain</b>, then a six by a "
+                  "batter <b>you don't own</b>. Notice how the second one can push you down.</div>")
             else:
                 res = whatif.run(contest, mm, stt, events)
                 wi_vec = res["_after_vec"]
+                story = whatif.plain_story(res)
                 rb, ra = res["rank_before"], res["rank_after"]
-                mvw = rb - ra
-                mv_html = (f"<span class='up'>▲ {mvw:,}</span>" if mvw > 0 else
-                           f"<span class='down'>▼ {-mvw:,}</span>" if mvw < 0 else "no change")
-                H("<ol class='scn'>" + "".join(f"<li>{html.escape(x)}</li>" for x in res["scenario"]) + "</ol>")
-                H(f"<div class='ba'><div><div class='k'>Your points</div>"
-                  f"<div class='v sm'>{res['points_before']:g} → {res['points_after']:g}</div>"
-                  f"<div class='d'>{res['points_after'] - res['points_before']:+g} for you</div></div>"
-                  f"<div><div class='k'>Rank {SIM}</div><div class='v sm'>#{rb:,} → #{ra:,}</div>"
-                  f"<div class='d'>{mv_html} · you pass {res['teams_you_passed']:,}, "
-                  f"{res['teams_that_passed_you']:,} pass you</div></div></div>")
-                facts = {k: v for k, v in res.items() if not k.startswith("_")}
-                expl = None
-                if ai.available():
-                    with st.spinner("Explaining…"):
-                        expl = ai.whatif_note(facts, lang)
-                H(f"<div class='lede'>{clean(expl or whatif.template_explanation(res))}</div>")
-                for p_ in res["players"]:
-                    rules = " + ".join(f"{lbl} {v:+g}" for lbl, v in p_["rules"])
-                    H(f"<div class='rb'><b>{html.escape(p_['player'])}</b> ({p_['team']}): "
-                      f"{p_['points_before']:g} → {p_['points_after']:g} pts<br>"
-                      f"<span class='rl'>{html.escape(rules)} = {p_['delta']:+g}</span><br>"
-                      f"{MULT_TXT.get(p_['your_multiplier'], '')}: <b>{p_['your_gain']:+g}</b> for you · "
-                      f"{p_['picked_by_pct']}% of rivals own him (avg ×{p_['field_avg_multiplier']}) → "
-                      f"field avg {p_['field_avg_gain']:+g}</div>")
-                H("<div class='legend'>" + " ".join(html.escape(w) for w in res["warnings"]) + "</div>")
+                scen = " → ".join(
+                    f"{match.name(e['batter'])} {whatif.VERB[e['type']]}" for e in events)
+                H(f"<div class='d' style='margin-top:8px'>If <b>{html.escape(scen)}</b>:</div>")
+                H(f"<div class='verdict {story['tone']}'>{html.escape(story['verdict'])}</div>")
+                H(f"""<div class='story'>
+<div class='sr'><div class='sl'>You</div><div class='sv'>{story['you_gain']:+g} pts</div>
+<div class='sx'>{html.escape(story['you_reason'])}</div></div>
+<div class='sr'><div class='sl'>Your rivals</div><div class='sv'>{story['rivals_gain']:+g} pts</div>
+<div class='sx'>on average. {html.escape(story['rivals_reason'])}</div></div>
+<div class='sr'><div class='sl'>Your rank</div><div class='sv'>#{rb:,} → #{ra:,}</div>
+<div class='sx'>{html.escape(story['rank_reason'])}</div></div>
+</div>""")
+                H(f"<div class='lede' style='margin-top:10px'><b>Why:</b> {html.escape(story['takeaway'])}</div>")
+                with st.expander("See the exact points maths"):
+                    for p_ in res["players"]:
+                        rules = " + ".join(f"{lbl} {v:+g}" for lbl, v in p_["rules"])
+                        H(f"<div class='rb'><b>{html.escape(p_['player'])}</b>: {html.escape(rules)} = "
+                          f"<b>{p_['delta']:+g} pts</b><br><span class='rl'>"
+                          f"{MULT_TXT.get(p_['your_multiplier'], '')} → {p_['your_gain']:+g} for you · "
+                          f"{p_['picked_by_pct']}% of rivals own him → rivals {p_['field_avg_gain']:+g} on average"
+                          f"</span></div>")
+                    H("<div class='legend'>Rivals are 10,000 simulated teams. "
+                      + " ".join(html.escape(w) for w in res["warnings"]) + "</div>")
 
 # ---------------- simulated leaderboard
 with t_lb:

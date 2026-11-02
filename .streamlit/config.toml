@@ -15,7 +15,7 @@ baseRadius = "3px"
 buttonRadius = "3px"
 showWidgetBorder = true
 showSidebarBorder = false
-baseFontSize = 15
+baseFontSize = 16
 
 [theme.sidebar]
 backgroundColor = "#1B1B20"

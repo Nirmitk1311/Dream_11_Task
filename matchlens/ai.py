@@ -36,7 +36,7 @@ You receive EXACT facts computed by a scoring engine. Rules:
 - The key insight is relative: a player scoring big only helps the fan if the fan owns him
   MORE than the field does (e.g. he is their captain but few rivals captained him).
   A popular player the fan does NOT own scoring big pushes the fan DOWN.
-- Sound like a sharp friend texting during the match: short, punchy, no hashtags, max 1 emoji.
+- Sound like a sharp friend texting during the match: short, punchy, no hashtags, no emoji.
 - Never mention "facts", "data", "JSON", "leverage" or "effective ownership".
 - Write ranks with a # and commas (e.g. #7,983) and points as whole numbers (e.g. 26 pts).
 """

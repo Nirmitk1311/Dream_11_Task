@@ -28,6 +28,7 @@ except Exception:
     ai.configure(None)
 
 st.markdown("""<style>
+:root{--u:clamp(1.05px, calc(0.62px + 0.03vw), 1.3px);}
 header[data-testid="stHeader"]{background:transparent;}
 footer{visibility:hidden;}
 .block-container{padding:1rem 1.6rem 0;max-width:none;}
@@ -35,77 +36,79 @@ footer{visibility:hidden;}
 [data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]{gap:.55rem;}
 .st-key-main [data-testid="stHorizontalBlock"]{flex-wrap:wrap;row-gap:1rem;}
 @media (min-width:900px){.st-key-main [data-testid="stColumn"]{min-width:360px;}}
+.st-key-main [data-testid="stColumn"] [data-testid="stColumn"]{min-width:0!important;}
+.st-key-main [data-testid="stColumn"] [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;}
 .st-key-feed,.st-key-edge{overflow-y:auto;overflow-x:hidden;padding-right:8px;}
-@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(200px,calc(100vh - 625px));}.st-key-edge{max-height:max(300px,calc(100vh - 360px));}}
+@media (min-width:1300px) and (min-height:680px){.st-key-feed{max-height:max(260px,calc(100vh - 298px - 4.7vw));}.st-key-edge{max-height:max(300px,calc(100vh - 398px - 6.6vw));}}
 .bug{display:flex;align-items:stretch;background:#17171B;color:#EDE9E0;border-radius:3px;overflow:hidden;margin-bottom:14px;}
-.bug .brand{background:#C2410C;color:#fff;padding:0 16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;font-size:23.5px;display:flex;align-items:center;}
+.bug .brand{background:#C2410C;color:#fff;padding:0 16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;font-size:calc(23.5 * var(--u));display:flex;align-items:center;}
 .bug .inn{padding:8px 18px;border-right:1px solid #34343B;display:flex;flex-direction:column;justify-content:center;min-width:150px;}
-.bug .t{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#9B968A;letter-spacing:.09em;text-transform:uppercase;}
-.bug .s{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:600;line-height:1.1;}
-.bug .s small{font-size:18px;color:#9B968A;font-weight:500;margin-left:4px;}
-.bug .inn.dim .s{color:#6E6A60;font-size:20px;}
+.bug .t{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#9B968A;letter-spacing:.09em;text-transform:uppercase;}
+.bug .s{font-family:'Barlow Condensed',sans-serif;font-size:calc(25 * var(--u));font-weight:600;line-height:1.1;}
+.bug .s small{font-size:calc(18 * var(--u));color:#9B968A;font-weight:500;margin-left:4px;}
+.bug .inn.dim .s{color:#6E6A60;font-size:calc(20 * var(--u));}
 .bug .inn.on{box-shadow:inset 0 -3px 0 #F97316;}
 .bug .ctx{margin-left:auto;padding:8px 18px;text-align:right;display:flex;flex-direction:column;justify-content:center;}
-.bug .ctx .r{font-size:14.5px;color:#EDE9E0;margin-top:2px;}
+.bug .ctx .r{font-size:calc(14.5 * var(--u));color:#EDE9E0;margin-top:2px;}
 .dot{display:inline-block;width:7px;height:7px;background:#F97316;border-radius:50%;margin-right:7px;vertical-align:1px;}
 .hero{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;border-top:2px solid #17171B;border-bottom:1px solid #D8D2C4;margin:0;}
 .hero .c{padding:9px 16px 11px;border-right:1px solid #D8D2C4;}
 .hero .c:last-child{border-right:none;}
-.k{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#6E6A60;}
-.v{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:38px;line-height:1;margin-top:5px;color:#17171B;}
-.hero .c.main .v{font-size:52px;}
-.v.sm{font-size:32px;}
-.d{font-size:14.5px;margin-top:6px;color:#6E6A60;}
+.k{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));letter-spacing:.09em;text-transform:uppercase;color:#6E6A60;}
+.v{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(38 * var(--u));line-height:1;margin-top:5px;color:#17171B;}
+.hero .c.main .v{font-size:calc(52 * var(--u));}
+.v.sm{font-size:calc(32 * var(--u));}
+.d{font-size:calc(14.5 * var(--u));margin-top:6px;color:#6E6A60;}
 .up{color:#1F7A4D;font-weight:600;} .down{color:#B42318;font-weight:600;}
 .pbar{height:4px;background:#E3DED2;margin-top:10px;position:relative;}
 .pbar i{position:absolute;left:0;top:0;bottom:0;background:#17171B;}
 .sh{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #17171B;padding-bottom:3px;margin:4px 0 8px;}
-.sh .h{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:23.5px;text-transform:uppercase;letter-spacing:.03em;margin:0;padding:0;}
-.sh span{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6E6A60;text-transform:uppercase;letter-spacing:.07em;}
+.sh .h{white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(23.5 * var(--u));text-transform:uppercase;letter-spacing:.03em;margin:0;padding:0;}
+.sh span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:12px;font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#6E6A60;text-transform:uppercase;letter-spacing:.07em;}
 .feed{border-left:1px solid #D8D2C4;margin-left:5px;}
 .fi{position:relative;padding:0 0 15px 18px;}
 .fi:before{content:"";position:absolute;left:-5px;top:5px;width:9px;height:9px;background:#F4F1EA;border:1.5px solid #17171B;border-radius:50%;box-sizing:border-box;}
 .fi.latest:before{background:#C2410C;border-color:#C2410C;}
-.fi .m{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#6E6A60;}
+.fi .m{font-family:'IBM Plex Mono',monospace;font-size:calc(13 * var(--u));color:#6E6A60;}
 .fi .m b{color:#17171B;font-weight:500;}
-.fi .tx{font-size:17px;line-height:1.5;margin-top:3px;}
-.fi.latest .tx{font-size:18.5px;}
-.chip{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:1px 6px;border-radius:2px;margin-left:8px;}
+.fi .tx{font-size:calc(17 * var(--u));line-height:1.5;margin-top:3px;}
+.fi.latest .tx{font-size:calc(18.5 * var(--u));}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:calc(12.5 * var(--u));padding:1px 6px;border-radius:2px;margin-left:8px;}
 .chip.up{background:#E1EFE6;color:#1F7A4D;} .chip.down{background:#F6E1DE;color:#B42318;} .chip.flat{background:#E3DED2;color:#6E6A60;}
-.lede{font-size:17px;line-height:1.5;border-left:3px solid #C2410C;padding:1px 0 1px 11px;margin:0 0 12px;}
+.lede{font-size:calc(17 * var(--u));line-height:1.5;border-left:3px solid #C2410C;padding:1px 0 1px 11px;margin:0 0 12px;}
 .nx{border:1px solid #D8D2C4;background:#FBFAF6;}
 .nx .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #E6E1D6;}
 .nx .row:last-child{border-bottom:none;}
-.nx .nm{font-weight:600;font-size:17px;}
-.nx .sub{font-size:14px;color:#6E6A60;margin-top:2px;}
-.tag{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;}
+.nx .nm{font-weight:600;font-size:calc(17 * var(--u));}
+.nx .sub{font-size:calc(14 * var(--u));color:#6E6A60;margin-top:2px;}
+.tag{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(15.5 * var(--u));letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;}
 .tag.cheer{background:#1F7A4D;color:#fff;} .tag.fear{background:#B42318;color:#fff;} .tag.neutral{background:#E3DED2;color:#6E6A60;}
 .ft{border:2px solid #17171B;padding:12px 14px;background:#FBFAF6;}
-.ft .v{font-size:40px;}
-.edge{width:100%;border-collapse:collapse;font-size:15px;border:none!important;margin:0;}
+.ft .v{font-size:calc(40 * var(--u));}
+.edge{width:100%;border-collapse:collapse;font-size:calc(15 * var(--u));border:none!important;margin:0;}
 .edge tr{background:transparent!important;border:none!important;}
-.edge th{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#6E6A60;text-align:left;border-bottom:1px solid #17171B!important;padding:4px 6px;border-top:none!important;border-left:none!important;border-right:none!important;background:transparent!important;}
+.edge th{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:calc(11 * var(--u));text-transform:uppercase;letter-spacing:.07em;color:#6E6A60;text-align:left;border-bottom:1px solid #17171B!important;padding:4px 6px;border-top:none!important;border-left:none!important;border-right:none!important;background:transparent!important;}
 .edge td{padding:7px 6px;border:none!important;border-bottom:1px solid #E6E1D6!important;vertical-align:middle;}
-.edge .who{font-size:13px;color:#6E6A60;}
-.edge .b{height:5px;margin:3px 0;background:#E3DED2;position:relative;width:90px;}
+.edge .who{font-size:calc(13 * var(--u));color:#6E6A60;}
+.edge .b{height:calc(5 * var(--u));margin:3px 0;background:#E3DED2;position:relative;width:calc(90 * var(--u));}
 .edge .b i{position:absolute;left:0;top:0;bottom:0;}
 .edge .b.you i{background:#17171B;} .edge .b.fld i{background:#A39E92;}
-.num{font-family:'IBM Plex Mono',monospace;font-size:14px;text-align:right;white-space:nowrap;}
-.legend{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6E6A60;margin-top:6px;}
+.num{font-family:'IBM Plex Mono',monospace;font-size:calc(14 * var(--u));text-align:right;white-space:nowrap;}
+.legend{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#6E6A60;margin-top:6px;}
 .legend i{display:inline-block;width:10px;height:5px;margin:0 4px 1px 10px;}
-.catch{background:#FBFAF6;border:1px solid #D8D2C4;padding:10px 12px;font-size:16px;line-height:1.55;margin-top:8px;}
-.wm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;letter-spacing:.08em;line-height:1;}
+.catch{background:#FBFAF6;border:1px solid #D8D2C4;padding:10px 12px;font-size:calc(16 * var(--u));line-height:1.55;margin-top:8px;}
+.wm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(26 * var(--u));letter-spacing:.08em;line-height:1;}
 .wm b{color:#F97316;}
-.tagline{font-size:14px;color:#9B968A;margin:4px 0 6px;}
-.lu .grp{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#9B968A;margin:12px 0 3px;text-transform:uppercase;}
-.lu .p{display:flex;justify-content:space-between;font-size:15px;padding:4px 0;border-bottom:1px solid #2E2E35;}
-.lu .cv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13.5px;background:#F97316;color:#17171B;padding:0 4px;margin-left:6px;border-radius:2px;}
-.lu .pts{font-family:'IBM Plex Mono',monospace;font-size:14px;}
-.lu .tot{display:flex;justify-content:space-between;align-items:baseline;font-family:'Barlow Condensed',sans-serif;font-size:24.5px;font-weight:700;margin-top:10px;}
-.status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#9B968A;margin-top:14px;letter-spacing:.04em;}
+.tagline{font-size:calc(14 * var(--u));color:#9B968A;margin:4px 0 6px;}
+.lu .grp{font-family:'IBM Plex Mono',monospace;font-size:calc(11 * var(--u));letter-spacing:.12em;color:#9B968A;margin:12px 0 3px;text-transform:uppercase;}
+.lu .p{display:flex;justify-content:space-between;font-size:calc(15 * var(--u));padding:4px 0;border-bottom:1px solid #2E2E35;}
+.lu .cv{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(13.5 * var(--u));background:#F97316;color:#17171B;padding:0 4px;margin-left:6px;border-radius:2px;}
+.lu .pts{font-family:'IBM Plex Mono',monospace;font-size:calc(14 * var(--u));}
+.lu .tot{display:flex;justify-content:space-between;align-items:baseline;font-family:'Barlow Condensed',sans-serif;font-size:calc(24.5 * var(--u));font-weight:700;margin-top:10px;}
+.status{font-family:'IBM Plex Mono',monospace;font-size:calc(12 * var(--u));color:#9B968A;margin-top:14px;letter-spacing:.04em;}
 .status i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:1px;}
-@media (max-width:760px){.hero{grid-template-columns:1fr 1fr;}.hero .c{border-bottom:1px solid #D8D2C4;}
-.bug{flex-wrap:wrap;}.bug .ctx{margin-left:0;text-align:left;}.hero .c.main .v{font-size:46px;}}
+@media (max-width:760px){.block-container{padding:2.8rem 0.8rem 0;}.hero{grid-template-columns:1fr 1fr;}.hero .c{border-bottom:1px solid #D8D2C4;}
+.bug{flex-wrap:wrap;}.bug .ctx{margin-left:0;text-align:left;}.hero .c.main .v{font-size:calc(46 * var(--u));}}
 </style>""", unsafe_allow_html=True)
 
 
@@ -332,11 +335,11 @@ H(f"""<div class='hero'>
 </div>""")
 
 with st.container(key="main"):
-    left, mid, right = st.columns([1.3, 1, 1], gap="medium")
+    feedcol, mid, right = st.columns([1.15, 1, 1], gap="medium")
 
 # ------------------------------------------------------------------ left: chart + feed
-with left:
-    sh("Rank, over by over", f"{n - 1:,} simulated rivals")
+with mid:
+    sh("Rank, over by over", f"{n - 1:,} rivals")
     df = pd.DataFrame({
         "over": list(range(1, s + 1)),
         "rank": [int(x) for x in tl["rank"][1:s + 1]],
@@ -355,7 +358,7 @@ with left:
     if n1 < last_step:
         band = pd.DataFrame({"a": [n1 + 0.5], "b": [last_step], "t": ["CHASE"]})
         layers.append(alt.Chart(band).mark_rect(color="#EAE5DA", opacity=0.6).encode(x="a:Q", x2="b:Q"))
-        layers.append(alt.Chart(band).mark_text(align="left", dx=6, dy=0, font="IBM Plex Mono", fontSize=11,
+        layers.append(alt.Chart(band).mark_text(align="left", dx=6, dy=0, font="IBM Plex Mono", fontSize=12,
                                                 color=MUTED).encode(x="a:Q", y=alt.value(10), text="t:N"))
     if len(df):
         tip = [alt.Tooltip("label:N", title="Over"), alt.Tooltip("score:N", title="Score"),
@@ -365,17 +368,18 @@ with left:
         layers.append(base.mark_circle(color=INK, size=22, opacity=1))
         cur = df.tail(1).assign(txt=lambda d: d["rank"].map(lambda v: f"#{v:,}"))
         layers.append(alt.Chart(cur).mark_circle(color=ACCENT, size=110, opacity=1).encode(x=x_enc, y=y_enc))
-        layers.append(alt.Chart(cur).mark_text(align="left", dx=9, dy=-10, font="Barlow Condensed", fontSize=19,
+        layers.append(alt.Chart(cur).mark_text(align="left", dx=9, dy=-10, font="Barlow Condensed", fontSize=22,
                                                fontWeight=700, color=ACCENT).encode(x=x_enc, y=y_enc, text="txt:N"))
     else:
         layers.append(alt.Chart(pd.DataFrame({"over": [1], "rank": [1]})).mark_point(opacity=0).encode(x=x_enc, y=y_enc))
-    chart = alt.layer(*layers).properties(height=205, background="transparent").configure_axis(
+    chart = alt.layer(*layers).properties(height=175, background="transparent").configure_axis(
         labelFont="IBM Plex Mono", titleFont="IBM Plex Mono", labelColor=MUTED, titleColor=MUTED,
-        labelFontSize=12, titleFontSize=11, titleFontWeight="normal", gridColor="#E3DED2",
+        labelFontSize=13, titleFontSize=12, titleFontWeight="normal", gridColor="#E3DED2",
         domainColor=RULE, tickColor=RULE, titleAngle=0, titleAlign="left", titleY=-10, titleX=-38,
     ).configure_view(stroke=None)
     st.altair_chart(chart, theme=None, width="stretch")
 
+with feedcol:
     sh("What moved you", "latest first")
     if s == 0:
         H("<div class='lede'>Press <b>Next over</b> or turn on <b>Autoplay</b>. After every over you get one line "
@@ -399,8 +403,8 @@ with left:
 WANT = {("batting", "cheer"): "Want runs", ("batting", "fear"): "Want him out",
         ("bowling", "cheer"): "Want wickets", ("bowling", "fear"): "Want him hit",
         ("batting", "neutral"): "Low stake", ("bowling", "neutral"): "Low stake"}
-YOU = {"your Captain (2x)": "your captain", "your Vice-captain (1.5x)": "your vice-captain",
-       "in your team": "in your team", "NOT in your team": "not in your team"}
+YOU = {"your Captain (2x)": "your C", "your Vice-captain (1.5x)": "your VC",
+       "in your team": "yours", "NOT in your team": "not yours"}
 
 with mid:
     if s >= last_step:
@@ -420,11 +424,12 @@ with mid:
             rows.append(
                 f"<div class='row'><div><div class='nm'>{html.escape(r_['player'])}</div>"
                 f"<div class='sub'>{r_['team']} · {r_['job']} · {YOU[r_['you']]} · "
-                f"in {r_['picked_by_pct']}% of rival teams</div></div>"
+                f"{r_['picked_by_pct']}% own</div></div>"
                 f"<span class='tag {r_['verdict']}'>{WANT[(r_['job'], r_['verdict'])]}</span></div>")
         H("<div class='nx'>" + "".join(rows) + "</div>")
 
-    sh("Catch me up", "missed a few overs?")
+with right:
+    sh("Catch me up", "missed overs?")
     if s < 2:
         H("<div class='d' style='margin-top:0'>Available from over 2: a three-line summary of only what "
           "mattered to your team since you last looked.</div>")
@@ -449,18 +454,18 @@ with right:
     sh("Where you differ", "you vs the field")
     cur_pts = match.steps[s].points
     trs = []
-    for r_ in contest.differentials(mm)[:8]:
+    for r_ in contest.differentials(mm)[:7]:
         i = contest.pids.index(r_["pid"])
         you_m, fld_m = float(mm[i]), float(contest.eo[i])
         eff = "<span class='up'>helps</span>" if r_["leverage"] > 0 else "<span class='down'>hurts</span>"
         trs.append(
             f"<tr><td><div>{html.escape(r_['player'])}</div><div class='who'>{r_['team']} · "
-            f"{YOU[r_['you']]} · in {r_['picked_by_pct']}%</div></td>"
+            f"{YOU[r_['you']]} · {r_['picked_by_pct']}% own</div></td>"
             f"<td><div class='b you'><i style='width:{you_m / 2 * 100:.0f}%'></i></div>"
             f"<div class='b fld'><i style='width:{min(fld_m, 2) / 2 * 100:.0f}%'></i></div></td>"
             f"<td>{eff}</td><td class='num'>{cur_pts[r_['pid']]}</td></tr>")
     with st.container(key="edge"):
-        H("<table class='edge'><tr><th>Player</th><th>Stake</th><th>If he scores</th><th class='num'>Pts</th></tr>"
+        H("<table class='edge'><tr><th>Player</th><th>Stake</th><th>His runs</th><th class='num'>Pts</th></tr>"
       + "".join(trs) + "</table>"
       "<div class='legend'>Stake:<i style='background:#17171B'></i>you<i style='background:#A39E92'></i>"
       "rivals' average (captain = 2x)</div>")

@@ -1,4 +1,4 @@
-"""MatchLens: a fantasy-aware live match companion.
+"""Live match companion: a fantasy-aware view of a live match (concept feature for the Dream11 app).
 
 engine.py  - ball-by-ball -> fantasy points (exact, no AI)
 contest.py - simulated contest: rank, effective ownership, what moved you

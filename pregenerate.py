@@ -11,10 +11,10 @@ import time
 import tomllib
 from pathlib import Path
 
-from matchlens import ai
-from matchlens.contest import Contest
-from matchlens.engine import list_matches, load_match
-from matchlens.facts import catch_up_facts, preset_team, step_facts
+from companion import ai
+from companion.contest import Contest
+from companion.engine import list_matches, load_match
+from companion.facts import catch_up_facts, preset_team, step_facts
 
 CHUNK = 10  # must match app.py
 

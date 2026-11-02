@@ -7,10 +7,10 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from matchlens import ai, whatif
-from matchlens.contest import Contest
-from matchlens.engine import SCORING, Stats, load_match
-from matchlens.facts import preset_team, step_facts
+from companion import ai, whatif
+from companion.contest import Contest
+from companion.engine import SCORING, Stats, load_match
+from companion.facts import preset_team, step_facts
 
 MATCH_ID = "1539433"  # NZ vs IND, 2nd T20I, 24 Oct 2026
 

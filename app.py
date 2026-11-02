@@ -1,4 +1,4 @@
-"""MatchLens - your team's view of a live cricket match.
+"""Live match companion: a concept feature for the Dream11 app.
 
 Run locally:  streamlit run app.py
 """
@@ -13,12 +13,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from matchlens import ai, whatif
-from matchlens.contest import Contest, validate_team
-from matchlens.engine import RULESET, SCORING, list_matches, load_match
-from matchlens.facts import catch_up_facts, preset_team, step_facts
+from companion import ai, whatif
+from companion.contest import Contest, validate_team
+from companion.engine import RULESET, SCORING, list_matches, load_match
+from companion.facts import catch_up_facts, preset_team, step_facts
 
-st.set_page_config(page_title="MatchLens", page_icon=":material/sports_cricket:", layout="wide",
+st.set_page_config(page_title="Live match companion", page_icon=":material/sports_cricket:", layout="wide",
                    initial_sidebar_state="auto")
 
 INK, MUTED, RULE, ACCENT, UP, DOWN = "#17171B", "#6E6A60", "#D8D2C4", "#C2410C", "#1F7A4D", "#B42318"
@@ -161,7 +161,7 @@ match_labels = {m["id"]: m["label"] for m in matches}
 
 # ------------------------------------------------------------------ sidebar: match + language
 with st.sidebar:
-    H("<div class='wm'>MATCH<b>LENS</b></div><div class='tagline'>Your fantasy team's view of the match</div>")
+    H("<div class='wm'>LIVE <b>MATCH</b></div><div class='tagline'>Your fantasy team's view of the match. A concept feature for the Dream11 app.</div>")
     match_id = st.selectbox("Match", list(match_labels), format_func=lambda k: match_labels[k])
     lang = st.segmented_control("Notes language", ["en", "hinglish"], default="en",
                                 format_func=lambda k: {"en": "English", "hinglish": "Hinglish"}[k]) or "en"
@@ -693,5 +693,5 @@ rivals captained is worth cheering. A player in 90% of teams that you left out h
 25/50/75/100-run bonuses, duck −2, wicket +{SCORING['wicket']} (+8 bowled/LBW), 3/4/5-wicket bonuses, maiden +12, dot ball +1,
 catch +8, stumping +12, run-out +12/+6, economy and strike-rate bonuses, captain 2x, vice-captain 1.5x, +4 for playing.
 
-Match data from [Cricsheet](https://cricsheet.org) (ODC-By). Rival teams and popularity are simulated. Not affiliated with Dream11.
+Match data from [Cricsheet](https://cricsheet.org) (ODC-By). Rival teams and popularity are simulated. Concept prototype, not an official Dream11 product.
 """)
